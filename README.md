@@ -2,7 +2,8 @@
 
 우리집의 포근한 하루를 함께 기록하는 가족 대시보드입니다. 설치 없이 브라우저로 열고, 홈 화면에 추가하면 앱처럼 쓸 수 있어요(PWA).
 
-- 배포 주소(예정): `https://karisma1690-coder.github.io/family-dashboard/`
+- 배포 주소: `https://karisma1690-coder.github.io/family-dashboard/` (2026-11-16 배포 완료)
+- 저장소: `https://github.com/karisma1690-coder/family-dashboard` (공개, `main` / 루트)
 - 작업 위치: `work/family-dashboard/`
 - 구성원: 아빠(성영) · 엄마(수나) · 윤슬 · 노을
 
@@ -31,23 +32,15 @@
 9. **우리집 한마디** — 보낸 사람을 고르고 짧은 응원/메모 남기기(최근 40개 표시, 200개 보관).
 10. **저장 & 설정** — 모든 기록은 브라우저 `localStorage`에만 저장, 설정에서 용돈 금액 변경, JSON 백업/불러오기, 전체 초기화.
 
-## GitHub Pages 배포 방법
+## GitHub Pages 배포 상태
 
-`@karisma1690-coder` 계정에 `family-dashboard` 공개 저장소를 만들고 `main` 브랜치 루트에서 Pages를 켭니다.
+- 저장소: `karisma1690-coder/family-dashboard` (공개)
+- Pages: `main` 브랜치 / `/ (root)` — Deploy from a branch, HTTPS 강제 켜짐
+- 사이트: `https://karisma1690-coder.github.io/family-dashboard/`
 
-```bash
-cd work/family-dashboard
-git init -b main
-git add .
-git commit -m "우리 가족 기록장 대시보드"
-gh repo create karisma1690-coder/family-dashboard --public --source=. --push
-# Pages 켜기 (main / 루트)
-gh api -X POST repos/karisma1690-coder/family-dashboard/pages \
-  -f 'source[branch]=main' -f 'source[path]=/'
-```
+배포 파일은 저장소 루트에 있는 `index.html`, `styles.css`, `app.js`, `manifest.webmanifest`, `sw.js`, 아이콘, `.nojekyll` 입니다. `main`에 푸시하면 1~2분 안에 자동으로 다시 빌드됩니다.
 
-잠시 뒤 `https://karisma1690-coder.github.io/family-dashboard/` 에서 열립니다.
-(브라우저 설정에서 GitHub 앱의 저장소 생성 권한이 필요할 수 있어요.)
+> 당시 `gh api -X POST repos/.../pages`는 GitHub 앱 토큰에 Pages 권한이 없어 403(`Resource not accessible by integration`)이 났고, 저장소 Settings → Pages 화면에서 직접 켰습니다. 이후 갱신은 푸시만으로 됩니다.
 
 ## 개인정보
 
