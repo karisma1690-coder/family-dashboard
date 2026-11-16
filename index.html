@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>우리 가족 기록장</title>
+<meta name="description" content="우리집의 포근한 하루를 함께 기록하는 가족 대시보드">
+<meta name="theme-color" content="#FFFDF2">
+<meta name="color-scheme" content="light">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="우리 가족 기록장">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="bg-blobs" aria-hidden="true"><span></span><span></span><span></span></div>
+
+<div class="app">
+
+  <!-- ============ 헤더 ============ -->
+  <header class="app-header">
+    <div class="header-top">
+      <div class="header-title">
+        <h1 class="app-title"><span aria-hidden="true">🏡</span> 우리 가족 기록장</h1>
+        <p class="app-date" id="todayDate">오늘</p>
+        <p class="app-sub">우리집의 포근한 하루</p>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="btnSettings" type="button" aria-label="설정 열기" title="설정">
+          <span aria-hidden="true">⚙️</span>
+        </button>
+        <button class="icon-btn" id="btnShare" type="button" aria-label="가족에게 공유하기" title="공유">
+          <span aria-hidden="true">↗</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="welcome-pill">✨ 오늘도 함께 기록해요</div>
+
+    <!-- 날씨 위젯 -->
+    <section class="weather-card" id="weatherCard" aria-live="polite">
+      <div class="weather-main">
+        <span class="weather-emoji" id="weatherEmoji" aria-hidden="true">🌤️</span>
+        <div class="weather-temp-wrap">
+          <div class="weather-city">울산 <strong id="weatherTemp">--°</strong></div>
+          <div class="weather-desc" id="weatherDesc">날씨를 불러오는 중이에요</div>
+        </div>
+      </div>
+      <div class="weather-side">
+        <div class="weather-range" id="weatherRange">최저 -° · 최고 -°</div>
+        <div class="air-badges">
+          <span class="badge" id="badgePm10">미세먼지 -</span>
+          <span class="badge" id="badgePm25">초미세먼지 -</span>
+        </div>
+      </div>
+      <span class="weather-tip" id="weatherTip">😊 오늘도 좋은 하루 보내요</span>
+    </section>
+  </header>
+
+  <main class="app-main">
+
+    <!-- ============ 1. 가족 현황 ============ -->
+    <section class="card card-family" aria-labelledby="familyTitle">
+      <div class="card-head">
+        <h2 id="familyTitle">🐷 가족 현황</h2>
+        <span class="card-note">오늘의 별 · 돼지저금통</span>
+      </div>
+      <ul class="family-list" id="familyList"></ul>
+      <p class="family-foot">별은 오늘 완료한 개수의 합계, 돈은 저금통에 차곡차곡 🐷</p>
+    </section>
+
+    <!-- ============ 2. 주간 달성률 · 용돈 ============ -->
+    <section class="card card-weekly" aria-labelledby="weeklyTitle">
+      <div class="card-head">
+        <h2 id="weeklyTitle">🎯 이번 주 달성률</h2>
+        <span class="card-note" id="weekRange">이번 주</span>
+      </div>
+      <p class="weekly-guide">일주일 동안 할 일과 공부를 <strong>90%</strong> 채우면 주간 용돈을 받을 수 있어요!</p>
+      <div class="weekly-list" id="weeklyList"></div>
+    </section>
+
+    <!-- ============ 3. 도장판 ============ -->
+    <section class="card card-stamp" aria-labelledby="stampTitle">
+      <div class="card-head">
+        <h2 id="stampTitle"><span id="stampChildEmoji" aria-hidden="true">🐰</span> <span id="stampChildName">윤슬</span> 도장판</h2>
+        <span class="streak-badge" id="streakBadge">🔥 0일 연속</span>
+      </div>
+      <div class="stamp-tabs" id="stampTabs" role="tablist" aria-label="도장판 아이 선택"></div>
+      <p class="stamp-guide" id="stampGuide">그날 공부나 루틴을 하나라도 마치면 도장이 찍혀요</p>
+      <div class="stamp-week" id="stampWeek"></div>
+      <div class="stamp-foot">
+        <span class="stamp-count" id="stampCount">이번 달 도장 0개</span>
+        <button class="btn btn-ghost" id="btnCalendar" type="button">📅 도장판 달력 보기</button>
+      </div>
+    </section>
+
+    <!-- ============ 4. 가족 미션 ============ -->
+    <section class="card card-mission" aria-labelledby="missionTitle">
+      <div class="card-head">
+        <h2 id="missionTitle">🎲 오늘의 가족 미션</h2>
+        <span class="together-badge" id="missionCount">함께 0번</span>
+      </div>
+      <div class="mission-body">
+        <div class="mission-emoji" id="missionEmoji" aria-hidden="true">🥕</div>
+        <p class="mission-text" id="missionText">미션을 뽑아 보세요!</p>
+      </div>
+      <div class="mission-actions">
+        <button class="btn btn-mint" id="btnMissionDone" type="button">✅ 다 같이 했어요</button>
+        <button class="btn btn-ghost" id="btnMissionReroll" type="button">🔄 다른 미션 뽑기</button>
+      </div>
+      <p class="mission-note">가족이 다 함께 하는 미션이에요. 하루에 한 번 가볍게 해봐요!</p>
+    </section>
+
+    <!-- ============ 5. 공부 플랜 + 타이머 ============ -->
+    <section class="card card-study" aria-labelledby="studyTitle">
+      <div class="card-head">
+        <h2 id="studyTitle">📚 오늘의 공부 플랜</h2>
+        <span class="card-note" id="studyOverall">0 / 0 완료</span>
+      </div>
+      <p class="study-guide">항목을 체크하면 정해진 금액이 저금통에 바로 쌓여요. 고정 항목은 매일 아침 자동으로 올라와요.</p>
+      <div class="study-tools">
+        <button class="btn btn-ghost" id="btnFixedItems" type="button">⚙️ 고정 항목 관리</button>
+        <button class="btn btn-ghost" id="btnAddStudy" type="button">+ 공부 추가</button>
+      </div>
+      <div class="overall-bar" aria-hidden="true"><div class="overall-fill" id="studyOverallBar"></div></div>
+      <div class="study-members" id="studyMembers"></div>
+
+      <!-- 타이머 -->
+      <div class="timer" id="timer">
+        <div class="timer-modes" role="tablist" aria-label="타이머 방식">
+          <button class="timer-mode is-active" id="modeDown" type="button" role="tab" aria-selected="true">⏳ 남은 시간</button>
+          <button class="timer-mode" id="modeUp" type="button" role="tab" aria-selected="false">⏱️ 재는 시간</button>
+        </div>
+        <p class="timer-hint" id="timerHint">10분 · 시작을 눌러요</p>
+        <div class="timer-display" id="timerDisplay" aria-live="off">10:00</div>
+        <div class="timer-main-actions">
+          <button class="btn btn-mint" id="btnTimerStart" type="button">▶ 시작</button>
+          <button class="btn btn-ghost" id="btnTimerReset" type="button">↺ 초기화</button>
+        </div>
+        <div class="timer-presets" id="timerPresets">
+          <button class="chip" data-min="10" type="button">10분</button>
+          <button class="chip" data-min="20" type="button">20분</button>
+          <button class="chip" data-min="30" type="button">30분</button>
+        </div>
+        <div class="timer-custom">
+          <input type="number" id="customMinutes" min="1" max="180" inputmode="numeric" placeholder="직접" aria-label="직접 분 입력">
+          <button class="btn btn-ghost btn-small" id="btnCustomMinutes" type="button">분 맞추기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 6. 오늘 할 일 ============ -->
+    <section class="card card-todo" aria-labelledby="todoTitle">
+      <div class="card-head">
+        <h2 id="todoTitle">✅ 오늘 할 일</h2>
+        <span class="card-note">네 식구 각자 할 일</span>
+      </div>
+      <p class="todo-guide">한 사람의 할 일을 모두 끝내면 하이파이브가 터져요 🙌</p>
+      <div class="todo-members" id="todoMembers"></div>
+    </section>
+
+    <!-- ============ 7. 가족 채팅방 ============ -->
+    <section class="card card-chat" aria-labelledby="chatTitle">
+      <div class="card-head">
+        <h2 id="chatTitle">💌 우리집 한마디</h2>
+        <span class="card-note">짧은 응원과 메모</span>
+      </div>
+      <div class="chat-log" id="chatLog" aria-live="polite"></div>
+      <div class="chat-senders" id="chatSenders" role="group" aria-label="보내는 사람"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" maxlength="120" placeholder="따뜻한 한마디를 남겨 보세요" aria-label="메시지">
+        <button class="btn btn-mint btn-send" id="btnChatSend" type="button">보내기</button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-foot">
+    <p>🏡 우리 가족 기록장 · 기록은 이 기기에만 저장돼요</p>
+  </footer>
+</div>
+
+<!-- ============ 모달: 설정 ============ -->
+<div class="modal" id="modalSettings" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" hidden>
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h2 id="settingsTitle">⚙️ 설정</h2>
+      <button class="icon-btn small" data-close type="button" aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-body">
+      <h3 class="modal-sub">주간 용돈 (90% 달성 시)</h3>
+      <label class="field-row">🐰 윤슬
+        <span class="field-input"><input type="number" id="setAllowYuns" min="0" step="500" inputmode="numeric"> 원</span>
+      </label>
+      <label class="field-row">🐣 노을
+        <span class="field-input"><input type="number" id="setAllowNoeul" min="0" step="500" inputmode="numeric"> 원</span>
+      </label>
+      <p class="modal-help">이번 주(월~일) 달성률이 90%를 넘으면 이 금액을 저금통에 넣을 수 있어요.</p>
+
+      <h3 class="modal-sub">공부 항목 금액</h3>
+      <p class="modal-help">항목별 금액은 공부 플랜에서 ✏️ 를 눌러 바꿀 수 있어요. 고정 항목은 여기서 관리해요.</p>
+      <button class="btn btn-ghost full" id="btnFixedFromSettings" type="button">⚙️ 고정 항목 관리 열기</button>
+
+      <h3 class="modal-sub">데이터</h3>
+      <div class="modal-btn-row">
+        <button class="btn btn-ghost" id="btnExport" type="button">⬇️ JSON 백업</button>
+        <button class="btn btn-ghost" id="btnImport" type="button">⬆️ 불러오기</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+      <button class="btn btn-danger full" id="btnReset" type="button">전체 초기화</button>
+      <p class="modal-help">모든 기록은 이 브라우저에만 저장돼요. 기기를 바꾸면 백업 파일로 옮겨 주세요.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-mint full" id="btnSettingsSave" type="button">저장하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 모달: 고정 항목 관리 ============ -->
+<div class="modal" id="modalFixed" role="dialog" aria-modal="true" aria-labelledby="fixedTitle" hidden>
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h2 id="fixedTitle">⚙️ 고정 항목 관리</h2>
+      <button class="icon-btn small" data-close type="button" aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-body" id="fixedBody"></div>
+    <div class="modal-foot">
+      <button class="btn btn-mint full" data-close type="button">다 했어요</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 모달: 도장판 달력 ============ -->
+<div class="modal" id="modalCalendar" role="dialog" aria-modal="true" aria-labelledby="calTitle" hidden>
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h2 id="calTitle">📅 도장판 달력</h2>
+      <button class="icon-btn small" data-close type="button" aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="cal-nav">
+        <button class="icon-btn small" id="calPrev" type="button" aria-label="이전 달">‹</button>
+        <strong id="calMonth">2026년 11월</strong>
+        <button class="icon-btn small" id="calNext" type="button" aria-label="다음 달">›</button>
+      </div>
+      <div class="cal-tabs" id="calTabs" role="tablist" aria-label="아이 선택"></div>
+      <div class="cal-weekdays" aria-hidden="true">
+        <span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span><span>일</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <p class="cal-legend"><span class="dot done"></span> 도장 찍힌 날 <span class="dot today"></span> 오늘</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 모달: 항목 추가/수정 ============ -->
+<div class="modal" id="modalItem" role="dialog" aria-modal="true" aria-labelledby="itemTitle" hidden>
+  <div class="modal-panel modal-small">
+    <div class="modal-head">
+      <h2 id="itemTitle">공부 추가</h2>
+      <button class="icon-btn small" data-close type="button" aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label" for="itemText">내용</label>
+      <input class="text-input" type="text" id="itemText" maxlength="40" placeholder="예) 책 20분 읽기">
+      <label class="field-label" for="itemAmount">체크하면 쌓이는 금액</label>
+      <div class="amount-presets" id="amountPresets">
+        <button class="chip" data-amount="100" type="button">100원</button>
+        <button class="chip" data-amount="50" type="button">50원</button>
+        <button class="chip" data-amount="0" type="button">0원</button>
+      </div>
+      <input class="text-input" type="number" id="itemAmount" min="0" step="10" inputmode="numeric" value="100">
+      <label class="switch-row" for="itemFixed">
+        <input type="checkbox" id="itemFixed">
+        <span>매일 아침 자동으로 올라오는 고정 항목</span>
+      </label>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-mint full" id="btnItemSave" type="button">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 모달: 할 일 추가/수정 ============ -->
+<div class="modal" id="modalTodo" role="dialog" aria-modal="true" aria-labelledby="todoModalTitle" hidden>
+  <div class="modal-panel modal-small">
+    <div class="modal-head">
+      <h2 id="todoModalTitle">할 일 추가</h2>
+      <button class="icon-btn small" data-close type="button" aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label" for="todoText">할 일</label>
+      <input class="text-input" type="text" id="todoText" maxlength="40" placeholder="예) 내일 준비물 챙기기">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-mint full" id="btnTodoSave" type="button">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 모달: 알람 ============ -->
+<div class="modal" id="modalAlarm" role="dialog" aria-modal="true" aria-labelledby="alarmTitle" hidden>
+  <div class="modal-panel modal-small alarm-panel">
+    <div class="alarm-ring" aria-hidden="true">⏰</div>
+    <h2 id="alarmTitle">공부 완료!</h2>
+    <p class="alarm-text">태블릿 정리할 시간이에요</p>
+    <button class="btn btn-mint full" id="btnAlarmOk" type="button">확인했어요</button>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="false"></div>
+<div class="fx-layer" id="fxLayer" aria-hidden="true"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
