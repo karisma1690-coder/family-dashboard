@@ -2042,6 +2042,10 @@ function init() {
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     navigator.serviceWorker.register('sw.js').catch(() => {});
+    // 새 버전 서비스워커가 자리를 잡으면 한 번만 새로 고쳐 최신 화면으로 맞춰요.
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      location.reload();
+    });
   }
 }
 
