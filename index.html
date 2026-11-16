@@ -67,10 +67,54 @@
     <section class="card card-family" aria-labelledby="familyTitle">
       <div class="card-head">
         <h2 id="familyTitle">🐷 가족 현황</h2>
-        <span class="card-note">오늘의 별 · 돼지저금통</span>
+        <div class="card-head-side">
+          <span class="card-note">오늘의 별 · 돼지저금통</span>
+          <button class="sound-toggle" id="btnSound" type="button" aria-pressed="true" aria-label="춤 효과음 켜고 끄기" title="춤 효과음">🔊</button>
+        </div>
       </div>
       <ul class="family-list" id="familyList"></ul>
-      <p class="family-foot">별은 오늘 완료한 개수의 합계, 돈은 저금통에 차곡차곡 🐷</p>
+      <div class="dad-status">
+        <span class="dad-status-label" id="dadStatusLabel">🕺 아빠 지금</span>
+        <div class="dad-status-chips" id="dadStatusChips" role="group" aria-label="아빠 현재 상태 바꾸기"></div>
+      </div>
+      <p class="family-foot">아빠를 누르면 춤을 춰요 · 별은 오늘 완료한 개수의 합계, 돈은 저금통에 차곡차곡 🐷</p>
+    </section>
+
+    <!-- ============ 1-2. 우리집 주크박스 ============ -->
+    <section class="card card-juke" aria-labelledby="jukeTitle">
+      <div class="card-head">
+        <h2 id="jukeTitle">🎵 우리집 주크박스</h2>
+        <span class="card-note">노래 검색 · 바로 듣기</span>
+      </div>
+      <p class="juke-guide">추천 노래를 누르거나, 제목·가수를 적어 <strong>검색&amp;듣기</strong>를 눌러요. 유튜브 링크를 붙여 넣으면 이 화면 안에서 바로 재생돼요!</p>
+      <div class="juke-search">
+        <input type="text" id="jukeInput" maxlength="120" placeholder="예) 아기상어, 아이유 밤편지" aria-label="노래 제목이나 가수">
+        <button class="btn btn-mint" id="btnJukeSearch" type="button">🔍 검색 &amp; 듣기</button>
+      </div>
+      <div class="juke-presets" id="jukePresets" role="group" aria-label="추천 노래"></div>
+
+      <div class="juke-player" id="jukePlayer" hidden>
+        <div class="juke-now" id="jukeNow">재생 준비</div>
+        <div class="juke-frame-wrap" id="jukeFrameWrap"></div>
+        <div class="juke-search-panel" id="jukeSearchPanel" hidden>
+          <p class="juke-panel-text" id="jukePanelText">유튜브에서 이어서 틀어요</p>
+          <div class="juke-panel-actions">
+            <button class="btn btn-mint full" id="btnJukePanelMusic" type="button">🎵 유튜브 뮤직에서 바로 틀기</button>
+            <a class="btn btn-ghost full" id="linkJukePanelYT" href="https://www.youtube.com/" target="_blank" rel="noopener">▶ 유튜브에서 검색 결과 보기</a>
+          </div>
+          <p class="juke-hint">유튜브 영상 링크를 붙여 넣으면 이 화면 안에서 바로 재생돼요.</p>
+        </div>
+        <p class="juke-hint">영상이 안 나오면 아래 <strong>🎵 유튜브 뮤직에서 틀기</strong>를 눌러 주세요.</p>
+      </div>
+
+      <div class="juke-actions">
+        <button class="btn btn-mint" id="btnJukeMusic" type="button">🎵 유튜브 뮤직에서 틀기</button>
+        <button class="btn btn-ghost btn-small" id="btnJukeStop" type="button">⏹ 멈추기</button>
+      </div>
+      <div class="juke-recent-wrap">
+        <span class="juke-recent-label">최근 들은 노래</span>
+        <div class="juke-recent" id="jukeRecent"></div>
+      </div>
     </section>
 
     <!-- ============ 2. 주간 달성률 · 용돈 ============ -->

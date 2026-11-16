@@ -7,7 +7,36 @@
 /* ----------------------------- 상수 ----------------------------- */
 const STORAGE_KEY = 'family-dashboard.v1';
 const WEATHER_CACHE_KEY = 'family-dashboard.weather.v1';
+const FUN_KEY = 'family-dashboard.fun.v1';
 const ULSAN = { lat: 35.5384, lon: 129.3114, label: '울산' };
+
+/* 아빠 현재 상태 · 댄스 */
+const DAD_STATUSES = [
+  { id: 'work',    emoji: '💼', label: '일하는 중', cls: 'st-work' },
+  { id: 'home',    emoji: '🏠', label: '집 도착',   cls: 'st-home' },
+  { id: 'workout', emoji: '🏋️', label: '운동 중',   cls: 'st-workout' },
+  { id: 'dance',   emoji: '🕺', label: '춤추는 중', cls: 'st-dance' },
+];
+const DANCE_LINES = [
+  '아빠 신났다! 🕺',
+  '윤슬·노을 하이파이브! 🙌',
+  '둠칫 둠칫~ 🎶',
+  '우리 가족 최고! 💛',
+  '아빠가 제일 신나! 🥳',
+];
+const DANCE_EMOJI = ['🎵', '🎶', '✨', '💫', '⭐'];
+const DANCE_MS = 4500;
+
+/* 주크박스 — 추천 노래(유튜브 영상 ID 직접 확인) */
+const JUKE_PRESETS = [
+  { emoji: '🦈', label: '아기상어',       id: '761ae_KDg_Q' },
+  { emoji: '🐻', label: '곰 세 마리',     id: 'BzGY5oaoDzs' },
+  { emoji: '⭐', label: '작은 별',       id: 'tIRul7vW_b0' },
+  { emoji: '🐧', label: '뽀로로 동요',    id: 'DK0c-Ka4AyM' },
+  { emoji: '🍌', label: '바나나 차차',    id: 'heFqQ9B7zIU' },
+  { emoji: '🎉', label: '신나는 율동동요', id: '3aG3JZGQy0o' },
+];
+const JUKE_RECENT_MAX = 6;
 
 const MEMBERS = [
   { id: 'yuns',  name: '윤슬', role: '첫째',  sub: '오늘도 반짝반짝',   av: 'rabbit', bg: '#FFEAF1', stamp: '🐰', child: true  },
@@ -458,6 +487,375 @@ function hifivePop(anchorEl) {
   setTimeout(() => el.remove(), 1500);
 }
 
+/* ----------------------------- 놀이: 아빠 댄스 · 효과음 ----------------------------- */
+let fun = loadFun();
+
+function loadFun() {
+  const base = { dadStatus: 'work', muted: false, recent: [] };
+  try {
+    const raw = localStorage.getItem(FUN_KEY);
+    if (!raw) return base;
+    const o = JSON.parse(raw) || {};
+    return {
+      dadStatus: DAD_STATUSES.some(s => s.id === o.dadStatus) ? o.dadStatus : 'work',
+      muted: !!o.muted,
+      recent: Array.isArray(o.recent) ? o.recent.filter(r => r && r.q).slice(0, JUKE_RECENT_MAX) : [],
+    };
+  } catch (err) {
+    return base;
+  }
+}
+function saveFun() {
+  try { localStorage.setItem(FUN_KEY, JSON.stringify(fun)); } catch (err) { /* 저장 실패는 괜찮아요 */ }
+}
+function dadStatus() {
+  return DAD_STATUSES.find(s => s.id === fun.dadStatus) || DAD_STATUSES[0];
+}
+
+/* Web Audio — 짧고 경쾌한 8비트 멜로디 */
+let danceAudioCtx = null;
+function ensureDanceAudio() {
+  if (fun.muted) return null;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  if (!danceAudioCtx) {
+    try { danceAudioCtx = new AC(); } catch (err) { return null; }
+  }
+  if (danceAudioCtx.state === 'suspended') danceAudioCtx.resume().catch(() => {});
+  return danceAudioCtx;
+}
+
+const DANCE_MELODY = [
+  [72, .16], [76, .16], [79, .16], [84, .32],
+  [83, .16], [79, .16], [84, .34],
+  [86, .16], [84, .16], [79, .16], [76, .32],
+  [79, .16], [76, .16], [72, .42],
+];
+
+function playDanceTune() {
+  if (fun.muted) return;
+  const ctx = ensureDanceAudio();
+  if (!ctx) return;
+  const midiToFreq = m => 440 * Math.pow(2, (m - 69) / 12);
+  const t0 = ctx.currentTime + 0.03;
+  const master = ctx.createGain();
+  master.gain.value = 0.13;
+  master.connect(ctx.destination);
+
+  let t = t0;
+  DANCE_MELODY.forEach(([m, d]) => {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(midiToFreq(m), t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(1, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d * 0.9);
+    osc.connect(g); g.connect(master);
+    osc.start(t); osc.stop(t + d + 0.02);
+    t += d * 0.95;
+  });
+
+  // 마지막 화음 (딩동!)
+  [72, 76, 79, 84].forEach((m, i) => {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = i === 3 ? 'triangle' : 'square';
+    osc.frequency.setValueAtTime(midiToFreq(m + 12), t + 0.02);
+    g.gain.setValueAtTime(0.0001, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.7, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+    osc.connect(g); g.connect(master);
+    osc.start(t + 0.02); osc.stop(t + 0.6);
+  });
+}
+
+const danceState = { stopTimer: null, noteTimer: null, bubbleIdx: 0 };
+
+function danceLayerFor(row) {
+  let layer = row.querySelector('.dance-layer');
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.className = 'dance-layer';
+    layer.setAttribute('aria-hidden', 'true');
+    row.appendChild(layer);
+  }
+  return layer;
+}
+
+function spawnDanceNotes(row, layer, n) {
+  if (prefersReducedMotion()) return;
+  const av = row.querySelector('.avatar') || row;
+  const ar = av.getBoundingClientRect();
+  const rr = row.getBoundingClientRect();
+  const baseX = ar.left - rr.left + ar.width / 2;
+  const baseY = ar.top - rr.top + 4;
+  for (let i = 0; i < n; i++) {
+    const el = document.createElement('span');
+    el.className = 'dance-note';
+    el.textContent = DANCE_EMOJI[Math.floor(Math.random() * DANCE_EMOJI.length)];
+    el.style.left = (baseX + (Math.random() - 0.5) * 36).toFixed(0) + 'px';
+    el.style.top = baseY.toFixed(0) + 'px';
+    el.style.setProperty('--nx', ((Math.random() - 0.5) * 64).toFixed(0) + 'px');
+    el.style.setProperty('--nr', ((Math.random() - 0.5) * 70).toFixed(0) + 'deg');
+    layer.appendChild(el);
+    setTimeout(() => el.remove(), 1500);
+  }
+}
+
+function showDanceBubble(layer) {
+  Array.from(layer.querySelectorAll('.dance-bubble')).forEach(n => n.remove());
+  const el = document.createElement('div');
+  el.className = 'dance-bubble';
+  el.textContent = fun.dadStatus === 'dance'
+    ? '춤추는 중! 🕺'
+    : DANCE_LINES[danceState.bubbleIdx++ % DANCE_LINES.length];
+  layer.appendChild(el);
+}
+
+/** 아빠 댄스 — 다시 누르면 처음부터 이어서 춤 (4.5초) */
+function dadDance() {
+  const row = document.querySelector('.family-row[data-member="dad"]');
+  if (!row) return;
+  const avatar = row.querySelector('.avatar');
+  const layer = danceLayerFor(row);
+
+  row.classList.remove('is-dancing');
+  if (avatar) avatar.classList.remove('is-dancing');
+  void row.offsetWidth; // 애니메이션 재시작
+  row.classList.add('is-dancing');
+  if (avatar) avatar.classList.add('is-dancing');
+
+  showDanceBubble(layer);
+  spawnDanceNotes(row, layer, 4);
+
+  clearInterval(danceState.noteTimer);
+  danceState.noteTimer = setInterval(() => spawnDanceNotes(row, layer, 2), 520);
+  clearTimeout(danceState.stopTimer);
+  danceState.stopTimer = setTimeout(() => {
+    clearInterval(danceState.noteTimer);
+    row.classList.remove('is-dancing');
+    if (avatar) avatar.classList.remove('is-dancing');
+    const b = layer.querySelector('.dance-bubble');
+    if (b) b.remove();
+  }, DANCE_MS);
+
+  playDanceTune();
+  const r = row.getBoundingClientRect();
+  confetti(r.left + r.width / 2, r.top + 24, 16);
+}
+
+/** 엄마·윤슬·노을 — 작은 반응 */
+function memberCheer(mid) {
+  const row = document.querySelector(`.family-row[data-member="${mid}"]`);
+  if (!row) return;
+  const avatar = row.querySelector('.avatar');
+  const layer = danceLayerFor(row);
+  if (avatar) {
+    avatar.classList.remove('is-cheer');
+    void avatar.offsetWidth;
+    avatar.classList.add('is-cheer');
+    setTimeout(() => avatar.classList.remove('is-cheer'), 800);
+  }
+  spawnDanceNotes(row, layer, 5);
+  const r = row.getBoundingClientRect();
+  confetti(r.left + r.width / 2, r.top + 22, 10);
+}
+
+function setDadStatus(id) {
+  if (!DAD_STATUSES.some(s => s.id === id)) return;
+  fun.dadStatus = id;
+  saveFun();
+  renderFamily();
+  renderDadStatus();
+  dadDance();
+  const st = dadStatus();
+  toast(`아빠 지금 ${st.emoji} ${st.label}`);
+}
+
+function updateSoundToggle() {
+  const btn = $('#btnSound');
+  if (!btn) return;
+  btn.textContent = fun.muted ? '🔇' : '🔊';
+  btn.classList.toggle('is-muted', fun.muted);
+  btn.setAttribute('aria-pressed', String(fun.muted));
+  btn.setAttribute('title', fun.muted ? '춤 효과음 꺼짐 (누르면 켜기)' : '춤 효과음 켜짐 (누르면 끄기)');
+}
+
+function toggleSound() {
+  fun.muted = !fun.muted;
+  saveFun();
+  updateSoundToggle();
+  if (fun.muted) {
+    toast('춤 효과음을 껐어요 🔇');
+  } else {
+    playDanceTune();
+    toast('춤 효과음을 켰어요 🔊');
+  }
+}
+
+/* ----------------------------- 렌더: 아빠 상태 칩 ----------------------------- */
+function renderDadStatus() {
+  const chips = $('#dadStatusChips');
+  if (!chips) return;
+  const cur = dadStatus();
+  chips.innerHTML = DAD_STATUSES.map(s => `
+    <button class="dad-chip ${s.id === cur.id ? 'is-active' : ''}" type="button" data-dad-status="${s.id}"
+      aria-pressed="${s.id === cur.id}"><span aria-hidden="true">${s.emoji}</span> ${esc(s.label)}</button>`).join('');
+  const label = $('#dadStatusLabel');
+  if (label) label.textContent = `🕺 아빠 지금 · ${cur.label}`;
+  updateSoundToggle();
+}
+
+/* ----------------------------- 주크박스 ----------------------------- */
+let jukeNow = null; // { q, label, videoId }
+
+function ytIdFrom(text) {
+  const m = String(text || '').match(/(?:youtu\.be\/|[?&]v=|embed\/|shorts\/|live\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+function isYouTubeUrl(text) {
+  const t = String(text || '').trim();
+  return /^https?:\/\//i.test(t) || /^youtu\.be\//i.test(t);
+}
+function matchPreset(q) {
+  const flat = s => String(s || '').replace(/\s+/g, '').toLowerCase();
+  const target = flat(q);
+  return JUKE_PRESETS.find(p => flat(p.label) === target || flat(p.label).includes(target) || target.includes(flat(p.label))) || null;
+}
+function jukeLabel(q) {
+  if (ytIdFrom(q) && isYouTubeUrl(q)) return '붙여넣은 유튜브 영상';
+  return q;
+}
+
+function addJukeRecent(item) {
+  fun.recent = [item].concat(fun.recent.filter(r => r.q !== item.q)).slice(0, JUKE_RECENT_MAX);
+  saveFun();
+}
+
+function scrollToPlayer() {
+  const player = $('#jukePlayer');
+  if (!player) return;
+  try { player.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'nearest' }); } catch (_) { /* 무시 */ }
+}
+
+/** 대시보드 안 임베드 플레이어로 재생 (유튜브 영상 ID가 있을 때) */
+function playJukeVideo(videoId, label, opts = {}) {
+  const q = opts.q || label;
+  jukeNow = { q, label, videoId };
+  const wrap = $('#jukeFrameWrap');
+  if (wrap) {
+    wrap.hidden = false;
+    wrap.innerHTML = '';
+    const frame = document.createElement('iframe');
+    frame.src = `https://www.youtube.com/embed/${videoId}?rel=0&playsinline=1&autoplay=1`;
+    frame.title = `${label} 유튜브 플레이어`;
+    frame.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+    frame.referrerPolicy = 'strict-origin-when-cross-origin';
+    frame.setAttribute('allowfullscreen', '');
+    wrap.appendChild(frame);
+  }
+  const panel = $('#jukeSearchPanel');
+  if (panel) panel.hidden = true;
+  const player = $('#jukePlayer');
+  if (player) player.hidden = false;
+  const now = $('#jukeNow');
+  if (now) now.textContent = `▶ 지금 트는 중 · ${label}`;
+  const inp = $('#jukeInput');
+  if (inp) inp.value = q;
+
+  addJukeRecent({ q, label, videoId });
+  renderJukePresets();
+  renderJukeRecent();
+  if (opts.scroll !== false) scrollToPlayer();
+}
+
+/** 검색어가 영상 링크/추천 목록에 없을 때 — 유튜브로 바로 넘기는 패널 */
+function showJukeSearch(q) {
+  jukeNow = { q, label: q, videoId: null };
+  const wrap = $('#jukeFrameWrap');
+  if (wrap) { wrap.innerHTML = ''; wrap.hidden = true; }
+  const panel = $('#jukeSearchPanel');
+  if (panel) panel.hidden = false;
+  const text = $('#jukePanelText');
+  if (text) text.textContent = `🔎 ‘${q}’ — 대시보드에서 바로 재생되지 않는 곡은 아래 버튼으로 한 번에 틀 수 있어요.`;
+  const link = $('#linkJukePanelYT');
+  if (link) link.href = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+  const player = $('#jukePlayer');
+  if (player) player.hidden = false;
+  const now = $('#jukeNow');
+  if (now) now.textContent = `🔎 ‘${q}’ — 유튜브에서 찾아 틀어요`;
+
+  addJukeRecent({ q, label: q, videoId: null });
+  renderJukePresets();
+  renderJukeRecent();
+  scrollToPlayer();
+}
+
+/** 검색&듣기: ① 유튜브 링크 → 인앱 재생, ② 추천곡이면 인앱 재생, ③ 그 밖은 유튜브로 연결 */
+function jumpJuke(raw) {
+  const q = String(raw == null ? '' : raw).trim().replace(/\s+/g, ' ');
+  if (!q) {
+    toast('듣고 싶은 노래 제목을 적어 주세요');
+    const inp = $('#jukeInput');
+    if (inp) inp.focus();
+    return;
+  }
+  const vid = ytIdFrom(q);
+  if (vid) { playJukeVideo(vid, jukeLabel(q), { q }); return; }
+  const preset = matchPreset(q);
+  if (preset) { playJukeVideo(preset.id, preset.label, { q: preset.label }); return; }
+  showJukeSearch(q);
+}
+
+function stopJuke() {
+  const wrap = $('#jukeFrameWrap');
+  if (wrap) { wrap.innerHTML = ''; wrap.hidden = false; }
+  const panel = $('#jukeSearchPanel');
+  if (panel) panel.hidden = true;
+  const player = $('#jukePlayer');
+  if (player) player.hidden = true;
+  jukeNow = null;
+  renderJukePresets();
+  renderJukeRecent();
+  toast('음악을 멈췄어요 ⏹');
+}
+
+function openYouTubeMusic() {
+  const q = (jukeNow && jukeNow.q) || (($('#jukeInput') && $('#jukeInput').value) || '').trim();
+  if (!q) {
+    toast('먼저 노래 제목을 적어 주세요');
+    const inp = $('#jukeInput');
+    if (inp) inp.focus();
+    return;
+  }
+  const url = (jukeNow && jukeNow.videoId)
+    ? `https://music.youtube.com/watch?v=${jukeNow.videoId}`
+    : `https://music.youtube.com/search?q=${encodeURIComponent(q)}`;
+  window.open(url, '_blank', 'noopener');
+}
+
+function renderJukePresets() {
+  const box = $('#jukePresets');
+  if (!box) return;
+  const cur = jukeNow && jukeNow.videoId;
+  box.innerHTML = JUKE_PRESETS.map(p => `
+    <button class="juke-chip preset ${cur === p.id ? 'is-playing' : ''}" type="button"
+      data-preset="${esc(p.label)}" data-video="${esc(p.id)}"><span aria-hidden="true">${p.emoji}</span> ${esc(p.label)}</button>`).join('');
+}
+
+function renderJukeRecent() {
+  const box = $('#jukeRecent');
+  if (!box) return;
+  if (!fun.recent.length) {
+    box.innerHTML = '<span class="juke-recent-empty">아직 들은 노래가 없어요</span>';
+    return;
+  }
+  box.innerHTML = fun.recent.map(r => `
+    <button class="juke-chip recent ${jukeNow && jukeNow.q === r.q ? 'is-playing' : ''}" type="button"
+      data-recent="${esc(r.q)}" data-video="${esc(r.videoId || '')}" title="${esc(r.label)}">${r.videoId ? '🎵' : '🔎'} ${esc(r.label)}</button>`).join('');
+}
+
 /* ----------------------------- 렌더: 헤더 ----------------------------- */
 function renderHeader() {
   const now = new Date();
@@ -590,12 +988,18 @@ function renderFamily() {
   list.innerHTML = MEMBERS.map(m => {
     const stars = dayDoneCount(key, m.id);
     const balance = state.savings[m.id] || 0;
+    const isDad = m.id === 'dad';
+    const st = dadStatus();
+    const tap = isDad
+      ? ` data-tap="dad" tabindex="0" role="button" aria-label="아빠 지금 ${esc(st.label)} — 누르면 춤을 춰요"`
+      : ` data-tap="cheer"`;
     return `
-      <li class="family-row">
+      <li class="family-row" data-member="${m.id}"${tap}>
         ${avatarHTML(m)}
         <div class="family-name">
           <div class="nm">${esc(m.name)} <span class="role">${esc(m.role)}</span></div>
           <div class="sub">${esc(m.sub)}</div>
+          ${isDad ? `<span class="dad-badge ${st.cls}" id="dadBadge"><span aria-hidden="true">${st.emoji}</span> ${esc(st.label)}</span>` : ''}
         </div>
         <div class="family-stats">
           <div class="star-box"><span class="star" aria-hidden="true">★</span>${stars}</div>
@@ -944,6 +1348,7 @@ function sendChat() {
 function renderAll() {
   renderHeader();
   renderFamily();
+  renderDadStatus();
   renderWeekly();
   renderStamp();
   renderMission();
@@ -1192,8 +1597,11 @@ function importJSON(file) {
 }
 
 function resetAll() {
-  if (!confirm('모든 기록을 지우고 처음부터 시작할까요? 되돌릴 수 없어요.')) return;
+  if (!confirm('모든 기록을 지울까요? 처음부터 시작합니다. 되돌릴 수 없어요.')) return;
   state = emptyState();
+  fun = { dadStatus: 'work', muted: false, recent: [] };
+  saveFun();
+  stopJuke();
   save();
   renderAll();
   closeModal('modalSettings');
@@ -1391,6 +1799,48 @@ function bindEvents() {
     if (btn) claimAllowance(btn.dataset.claim);
   });
 
+  // 아빠 댄스 · 가족 반응
+  $('#familyList').addEventListener('click', e => {
+    const row = e.target.closest('.family-row');
+    if (!row) return;
+    if (row.dataset.member === 'dad') dadDance();
+    else if (row.dataset.member) memberCheer(row.dataset.member);
+  });
+  $('#familyList').addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const row = e.target.closest('.family-row');
+    if (!row || row.dataset.member !== 'dad') return;
+    e.preventDefault();
+    dadDance();
+  });
+
+  // 아빠 상태 칩 · 효과음 토글
+  $('#dadStatusChips').addEventListener('click', e => {
+    const chip = e.target.closest('[data-dad-status]');
+    if (chip) setDadStatus(chip.dataset.dadStatus);
+  });
+  $('#btnSound').addEventListener('click', toggleSound);
+
+  // 주크박스
+  $('#btnJukeSearch').addEventListener('click', () => jumpJuke($('#jukeInput').value));
+  $('#jukeInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); jumpJuke($('#jukeInput').value); }
+  });
+  $('#jukePresets').addEventListener('click', e => {
+    const chip = e.target.closest('[data-preset]');
+    if (!chip || !chip.dataset.video) return;
+    playJukeVideo(chip.dataset.video, chip.dataset.preset, { q: chip.dataset.preset });
+  });
+  $('#jukeRecent').addEventListener('click', e => {
+    const chip = e.target.closest('[data-recent]');
+    if (!chip) return;
+    if (chip.dataset.video) playJukeVideo(chip.dataset.video, chip.dataset.recent, { q: chip.dataset.recent });
+    else jumpJuke(chip.dataset.recent);
+  });
+  $('#btnJukeMusic').addEventListener('click', openYouTubeMusic);
+  $('#btnJukePanelMusic').addEventListener('click', openYouTubeMusic);
+  $('#btnJukeStop').addEventListener('click', stopJuke);
+
   // 도장판 탭
   $('#stampTabs').addEventListener('click', e => {
     const tab = e.target.closest('[data-child]');
@@ -1565,6 +2015,8 @@ function init() {
   syncFixedForDay(dateKey());
   ui.currentDay = dateKey();
   renderAll();
+  renderJukePresets();
+  renderJukeRecent();
   renderTimer();
   bindEvents();
   fetchWeather();

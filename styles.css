@@ -136,6 +136,7 @@ strong{font-weight:800}
 .card-note{font-size:11.5px;color:var(--ink-faint);font-weight:600}
 
 .card-family{background:linear-gradient(160deg,#F2FBF2 0%,#EAF7EC 100%);border-color:#DEEEDD}
+.card-juke{background:linear-gradient(160deg,#F7F3FF 0%,#EFF6FF 100%);border-color:#E4E1F6}
 .card-weekly{background:linear-gradient(160deg,#FFFCF3 0%,#FFF5E4 100%);border-color:#F4E7CD}
 .card-stamp{background:linear-gradient(160deg,#FFFBFD 0%,#FFF4F8 100%);border-color:#F6E3EC}
 .card-mission{background:linear-gradient(160deg,#FFF8F5 0%,#FFEFEC 100%);border-color:#F6DFD8}
@@ -192,6 +193,148 @@ strong{font-weight:800}
 .piggy-bump{animation:piggyBump .5s ease}
 @keyframes piggyBump{0%{transform:scale(1)}35%{transform:scale(1.22) rotate(-6deg)}70%{transform:scale(.96)}100%{transform:scale(1)}}
 .family-foot{margin-top:11px;font-size:11px;color:#9FAE9C;text-align:center}
+
+/* --- 가족 현황: 아빠 댄스 · 상태 칩 --- */
+.card-head-side{display:flex;align-items:center;gap:6px}
+.sound-toggle{
+  border:1px solid var(--line);background:#fff;border-radius:999px;
+  width:30px;height:30px;font-size:14px;line-height:1;
+  display:grid;place-items:center;box-shadow:var(--shadow-soft);
+}
+.sound-toggle.is-muted{opacity:.55;filter:grayscale(1)}
+.family-row[data-tap]{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .15s ease, box-shadow .15s ease}
+.family-row[data-tap]:active{transform:scale(.985)}
+.family-row[data-tap]:focus-visible{outline:2.5px solid #9FD3B6;outline-offset:2px}
+.family-row.is-dancing{
+  animation:rowGroove 1s ease-in-out infinite;
+  box-shadow:0 8px 22px rgba(150,190,160,.28);
+  border-color:#CFEBD8;
+  z-index:3;
+}
+@keyframes rowGroove{
+  0%,100%{transform:rotate(-.8deg) scale(1)}
+  25%{transform:rotate(.9deg) translateY(-2px) scale(1.008)}
+  50%{transform:rotate(-.6deg) scale(1)}
+  75%{transform:rotate(1deg) translateY(-2px) scale(1.008)}
+}
+.family-row .avatar{transition:transform .18s ease}
+.family-row .avatar.is-dancing{animation:dadDance .52s cubic-bezier(.36,.07,.19,.97) infinite;transform-origin:50% 88%}
+@keyframes dadDance{
+  0%{transform:rotate(-11deg) translateY(0) scale(1.02)}
+  25%{transform:rotate(9deg) translateY(-7px) scale(1.06)}
+  50%{transform:rotate(-7deg) translateY(0) scale(1.02)}
+  75%{transform:rotate(11deg) translateY(-9px) scale(1.07)}
+  100%{transform:rotate(-11deg) translateY(0) scale(1.02)}
+}
+.family-row .avatar.is-cheer{animation:memberCheer .75s ease}
+@keyframes memberCheer{
+  0%{transform:translateY(0) scale(1)}
+  35%{transform:translateY(-9px) scale(1.11) rotate(-5deg)}
+  65%{transform:translateY(-3px) scale(1.05) rotate(4deg)}
+  100%{transform:translateY(0) scale(1)}
+}
+.dad-badge{
+  display:inline-flex;align-items:center;gap:3px;margin-top:4px;
+  font-size:10.5px;font-weight:800;border-radius:999px;padding:2px 8px;
+  background:#EAF4FC;color:#4A83A8;border:1px solid #D5E9F8;
+  transition:background .25s ease, color .25s ease;
+}
+.dad-badge.st-dance{background:#FFF0E4;color:#C2762F;border-color:#F8DDC1}
+.dad-badge.st-home{background:#EAF8EC;color:#3E8C5E;border-color:#CFEBD5}
+.dad-badge.st-workout{background:#F3EEFC;color:#7A5DAB;border-color:#E3D9F5}
+.dance-layer{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.dance-note{
+  position:absolute;font-size:15px;line-height:1;will-change:transform,opacity;
+  animation:noteFloat 1.35s ease-out forwards;
+}
+@keyframes noteFloat{
+  0%{transform:translate(0,0) scale(.6) rotate(0);opacity:0}
+  15%{opacity:1;transform:translate(0,-6px) scale(1.05) rotate(-6deg)}
+  100%{transform:translate(var(--nx,10px),-46px) scale(.85) rotate(var(--nr,18deg));opacity:0}
+}
+.dance-bubble{
+  position:absolute;left:8px;top:-30px;z-index:5;
+  background:#fff;border:1.5px solid #DDEEDF;border-radius:14px;
+  padding:4px 9px;font-size:11px;font-weight:800;color:#4C8C63;
+  box-shadow:0 4px 12px rgba(120,160,130,.22);white-space:nowrap;
+  animation:bubblePop .38s cubic-bezier(.2,1.3,.4,1) both;
+}
+.dance-bubble::after{
+  content:'';position:absolute;left:18px;bottom:-6px;width:9px;height:9px;
+  background:#fff;border-right:1.5px solid #DDEEDF;border-bottom:1.5px solid #DDEEDF;
+  transform:rotate(45deg);
+}
+@keyframes bubblePop{from{transform:scale(.6) translateY(6px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.dad-status{margin-top:12px}
+.dad-status-label{font-size:11.5px;font-weight:800;color:#6E8B74}
+.dad-status-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.dad-chip{
+  border:1px solid #DCEEDD;background:#fff;color:#6F8C76;
+  border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700;white-space:nowrap;
+  transition:transform .12s ease, background .2s ease, color .2s ease;
+}
+.dad-chip:active{transform:scale(.96)}
+.dad-chip.is-active{background:#DFF3E3;border-color:#C4E7CB;color:#2F7449;box-shadow:0 2px 8px rgba(120,180,140,.22)}
+
+/* ============================ 우리집 주크박스 ============================ */
+.juke-guide{font-size:11.5px;color:#8C87A8;margin-top:8px;line-height:1.5}
+.juke-guide strong{color:#7A5DAB}
+.juke-search{display:flex;gap:7px;margin-top:11px}
+.juke-search input{
+  flex:1;min-width:0;border:1px solid #E4E1F6;background:#fff;border-radius:14px;
+  padding:11px 13px;font-size:13.5px;color:var(--ink);box-shadow:var(--shadow-soft);
+}
+.juke-search input::placeholder{color:#C3BFD6}
+.juke-search input:focus{outline:none;border-color:#C9BCEA;box-shadow:0 0 0 3px #F0EAFB}
+.juke-search .btn{flex-shrink:0;padding:11px 13px;font-size:12.5px}
+.juke-actions{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}
+.juke-actions .btn{min-width:0;white-space:nowrap}
+.juke-actions #btnJukeMusic{flex:2;font-size:12.5px}
+.juke-actions #btnJukeStop{flex:1;font-size:12.5px}
+.juke-presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.juke-chip{
+  border:1px solid #E7E2F7;background:#fff;color:#7A6E9C;
+  border-radius:999px;padding:6px 11px;font-size:11.5px;font-weight:700;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  transition:transform .12s ease, background .2s ease;
+}
+.juke-chip:active{transform:scale(.96)}
+.juke-chip.preset{background:#F6F1FE;border-color:#E4D9F8;color:#7A5DAB}
+.juke-chip.recent{background:#F1F8FF;border-color:#DCEBF9;color:#4A83A8}
+.juke-chip.is-playing{background:#FFF3E4;border-color:#F8DDC1;color:#C2762F}
+.juke-recent-wrap{margin-top:11px}
+.juke-recent-label{font-size:11px;font-weight:800;color:#A9A4BE}
+.juke-recent{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.juke-recent-empty{font-size:11px;color:#C3BFD6;font-weight:600}
+.juke-player{margin-top:12px;animation:popIn .3s ease}
+.juke-now{
+  font-size:12px;font-weight:800;color:#6E5E9E;background:#F6F1FE;
+  border:1px solid #E7DFF8;border-radius:13px;padding:7px 11px;margin-bottom:8px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.juke-frame-wrap{
+  position:relative;width:100%;aspect-ratio:16/9;border-radius:18px;overflow:hidden;
+  background:#20182E;box-shadow:0 6px 18px rgba(90,70,140,.18);
+}
+.juke-frame-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.juke-hint{margin-top:8px;font-size:10.5px;color:#A9A4BE;line-height:1.5}
+.juke-hint strong{color:#7A5DAB}
+.juke-search-panel{
+  background:#FBF8FF;border:1px dashed #DED3F3;border-radius:18px;padding:12px;
+  animation:popIn .28s ease;
+}
+.juke-panel-text{font-size:11.5px;color:#6E5E9E;font-weight:700;line-height:1.5;word-break:keep-all}
+.juke-panel-actions{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+.juke-panel-actions .btn{text-decoration:none}
+@media (max-width:360px){
+  .juke-search{flex-wrap:wrap}
+  .juke-search .btn{width:100%}
+}
+@media (prefers-reduced-motion:reduce){
+  .family-row.is-dancing,.family-row .avatar.is-dancing{animation:none}
+  .family-row .avatar.is-cheer{animation:none}
+  .dance-note{display:none}
+}
 
 /* ============================ 주간 달성률 ============================ */
 .weekly-guide{font-size:11.5px;color:#A8977E;margin-top:8px;line-height:1.5}
