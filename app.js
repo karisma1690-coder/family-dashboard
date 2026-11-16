@@ -767,6 +767,7 @@ function playJukeVideo(videoId, label, opts = {}) {
   addJukeRecent({ q, label, videoId });
   renderJukePresets();
   renderJukeRecent();
+  syncMusicLinks();
   if (opts.scroll !== false) scrollToPlayer();
 }
 
@@ -789,6 +790,7 @@ function showJukeSearch(q) {
   addJukeRecent({ q, label: q, videoId: null });
   renderJukePresets();
   renderJukeRecent();
+  syncMusicLinks();
   scrollToPlayer();
 }
 
@@ -818,21 +820,37 @@ function stopJuke() {
   jukeNow = null;
   renderJukePresets();
   renderJukeRecent();
+  syncMusicLinks();
   toast('음악을 멈췄어요 ⏹');
 }
 
-function openYouTubeMusic() {
-  const q = (jukeNow && jukeNow.q) || (($('#jukeInput') && $('#jukeInput').value) || '').trim();
-  if (!q) {
+function musicUrlFor(q, videoId) {
+  if (videoId) return `https://music.youtube.com/watch?v=${videoId}`;
+  return `https://music.youtube.com/search?q=${encodeURIComponent(q)}`;
+}
+
+/** 유튜브 뮤직 버튼(링크)의 주소를 지금 노래에 맞춰 바꿔 둡니다. */
+function syncMusicLinks() {
+  const typed = (($('#jukeInput') && $('#jukeInput').value) || '').trim();
+  const q = typed || (jukeNow && jukeNow.q) || '';
+  // 입력한 곡이 지금 트는 곡과 같을 때만 영상 ID로 바로 열어요
+  const videoId = (jukeNow && jukeNow.videoId && jukeNow.q === q) ? jukeNow.videoId : null;
+  const href = q ? musicUrlFor(q, videoId) : 'https://music.youtube.com/';
+  ['#btnJukeMusic', '#btnJukePanelMusic'].forEach(sel => {
+    const el = $(sel);
+    if (el) el.href = href;
+  });
+  return q;
+}
+
+/** 링크 클릭: 노래가 없으면 안내만 하고 이동은 막아요. */
+function onMusicLinkClick(e) {
+  if (!syncMusicLinks()) {
+    e.preventDefault();
     toast('먼저 노래 제목을 적어 주세요');
     const inp = $('#jukeInput');
     if (inp) inp.focus();
-    return;
   }
-  const url = (jukeNow && jukeNow.videoId)
-    ? `https://music.youtube.com/watch?v=${jukeNow.videoId}`
-    : `https://music.youtube.com/search?q=${encodeURIComponent(q)}`;
-  window.open(url, '_blank', 'noopener');
 }
 
 function renderJukePresets() {
@@ -1837,8 +1855,9 @@ function bindEvents() {
     if (chip.dataset.video) playJukeVideo(chip.dataset.video, chip.dataset.recent, { q: chip.dataset.recent });
     else jumpJuke(chip.dataset.recent);
   });
-  $('#btnJukeMusic').addEventListener('click', openYouTubeMusic);
-  $('#btnJukePanelMusic').addEventListener('click', openYouTubeMusic);
+  $('#btnJukeMusic').addEventListener('click', onMusicLinkClick);
+  $('#btnJukePanelMusic').addEventListener('click', onMusicLinkClick);
+  $('#jukeInput').addEventListener('input', syncMusicLinks);
   $('#btnJukeStop').addEventListener('click', stopJuke);
 
   // 도장판 탭

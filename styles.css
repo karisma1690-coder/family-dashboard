@@ -289,7 +289,7 @@ strong{font-weight:800}
 .juke-search .btn{flex-shrink:0;padding:11px 13px;font-size:12.5px}
 .juke-actions{display:flex;gap:7px;margin-top:8px;flex-wrap:wrap}
 .juke-actions .btn{min-width:0;white-space:nowrap}
-.juke-actions #btnJukeMusic{flex:2;font-size:12.5px}
+.juke-actions #btnJukeMusic{flex:2;font-size:12.5px;text-decoration:none}
 .juke-actions #btnJukeStop{flex:1;font-size:12.5px}
 .juke-presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
 .juke-chip{
