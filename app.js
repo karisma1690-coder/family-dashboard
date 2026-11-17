@@ -38,6 +38,42 @@ const JUKE_PRESETS = [
 ];
 const JUKE_RECENT_MAX = 6;
 
+/* 여행 보드 — 권역 (지도 위 위치는 지도 너비·높이의 %예요) */
+const TRAVEL_REGIONS = [
+  { id: 'seoul',     name: '서울·경기', short: '서울',      emoji: '🏙️', x: 14, y: 17 },
+  { id: 'gangwon',   name: '강원',      short: '강원',      emoji: '⛰️', x: 64, y: 20 },
+  { id: 'chung',     name: '충청',      short: '충청',      emoji: '🌰', x: 35, y: 35 },
+  { id: 'gyeongbuk', name: '경주·대구', short: '경주·대구', emoji: '🏯', x: 60, y: 44 },
+  { id: 'ulsan',     name: '울산',      short: '울산',      emoji: '⚓', x: 73, y: 56 },
+  { id: 'busan',     name: '부산',      short: '부산',      emoji: '🌊', x: 67, y: 67 },
+  { id: 'jeolla',    name: '여수·전라', short: '전라',      emoji: '🍃', x: 26, y: 58 },
+  { id: 'jeju',      name: '제주',      short: '제주',      emoji: '🍊', x: 26, y: 87 },
+  { id: 'world',     name: '해외·기타', short: '해외',      emoji: '✈️', x: 92, y: 82 },
+];
+const TV_REGION_MAP = Object.fromEntries(TRAVEL_REGIONS.map(r => [r.id, r]));
+
+/** 여행 보드 처음 모습 — 가볍고 일반적인 예시만 둬요 (공개 페이지라 민감정보 없음) */
+function defaultTravel() {
+  return [
+    { id: uid(), name: '경주',   region: 'gyeongbuk', status: 'been', when: '2025-08',      memo: '불국사랑 황리단길 산책' },
+    { id: uid(), name: '제주도', region: 'jeju',      status: 'wish', when: '다음 봄방학',  memo: '바다 보고 싶어요' },
+  ];
+}
+
+function normalizeTravel(list) {
+  if (!Array.isArray(list)) return defaultTravel();
+  return list
+    .filter(t => t && t.name)
+    .map(t => ({
+      id: t.id || uid(),
+      name: String(t.name).slice(0, 20),
+      region: TV_REGION_MAP[t.region] ? t.region : 'world',
+      status: t.status === 'been' ? 'been' : 'wish',
+      when: String(t.when || '').slice(0, 20),
+      memo: String(t.memo || '').slice(0, 40),
+    }));
+}
+
 const MEMBERS = [
   { id: 'yuns',  name: '윤슬', role: '첫째',  sub: '오늘도 반짝반짝',   av: 'rabbit', bg: '#FFEAF1', stamp: '🐰', child: true  },
   { id: 'noeul', name: '노을', role: '둘째',  sub: '포근포근 노을빛',   av: 'chick',  bg: '#FFF5D6', stamp: '🐣', child: true  },
@@ -241,6 +277,7 @@ function emptyState() {
     claimed: {},
     chat: [],
     seededTodos: false,
+    travel: defaultTravel(),
     createdAt: Date.now(),
   };
 }
@@ -279,6 +316,7 @@ function normalizeState(raw) {
     claimed: raw.claimed && typeof raw.claimed === 'object' ? raw.claimed : {},
     chat: Array.isArray(raw.chat) ? raw.chat.filter(m => m && m.text) : [],
     seededTodos: !!raw.seededTodos,
+    travel: normalizeTravel(raw.travel),
     createdAt: raw.createdAt || Date.now(),
   };
   MEMBERS.forEach(m => {
@@ -1381,6 +1419,8 @@ function renderAll() {
   renderStudy();
   renderTodo();
   renderChat();
+  renderTravelCard();
+  renderTravel();
   renderBoardTicker();
 }
 
@@ -2048,6 +2088,7 @@ function init() {
   renderTimer();
   bindEvents();
   initBoard();
+  initTravel();
   fetchWeather();
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
@@ -2252,20 +2293,26 @@ function boardActive() {
 
 function setMode(mode, persist = true) {
   const isBoard = mode === 'board';
+  const isTravel = mode === 'travel';
   document.body.classList.toggle('is-board', isBoard);
+  document.body.classList.toggle('is-travel', isTravel);
   const bv = $('#boardView');
+  const tv = $('#travelView');
   const app = $('.app');
   if (bv) bv.hidden = !isBoard;
-  if (app) app.hidden = isBoard;
-  if (persist) { try { localStorage.setItem(MODE_KEY, isBoard ? 'board' : 'record'); } catch (_) {} }
+  if (tv) tv.hidden = !isTravel;
+  if (app) app.hidden = isBoard || isTravel;
+  if (persist) { try { localStorage.setItem(MODE_KEY, isBoard ? 'board' : isTravel ? 'travel' : 'record'); } catch (_) {} }
   window.scrollTo(0, 0);
   if (isBoard) renderBoardAll();
+  if (isTravel) renderTravel();
 }
 
 function restoreMode() {
   let saved = 'record';
   try { saved = localStorage.getItem(MODE_KEY) || 'record'; } catch (_) {}
   if (saved === 'board') setMode('board', false);
+  else if (saved === 'travel') setMode('travel', false);
 }
 
 function fmtHM(hm) {
@@ -2580,6 +2627,7 @@ function renderBoardTicker() {
     `🎯 주간 달성(90% 목표): ${kidsTxt}`,
     ms ? `🎲 미션: ${ms.text}` : '🎲 미션: 아직 안 뽑았어요',
     lastChat ? `💌 한마디: “${sender} · ${String(lastChat.text).slice(0, 22)}”` : '💌 아직 한마디가 없어요',
+    `✈️ 여행: 다녀온 ${state.travel.filter(t => t.status === 'been').length}곳 · 가고 싶은 ${state.travel.filter(t => t.status === 'wish').length}곳`,
   ];
   const joined = text.join('|');
   if (joined !== bdUI.lastTicker) {
@@ -2670,7 +2718,7 @@ function deleteEventModal() {
 }
 
 function exportBoardEvents() {
-  const blob = new Blob([JSON.stringify({ app: 'family-dashboard', kind: 'calendar', events: board.events }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ app: 'family-dashboard', kind: 'calendar', events: board.events, travel: state.travel }, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -2693,10 +2741,14 @@ function importBoardEvents(file) {
       board.events = evs
         .filter(e => e && e.title && e.start)
         .map(e => ({ id: e.id || uid(), title: String(e.title).slice(0, 30), member: BOARD_MEMBER_MAP[e.member] ? e.member : 'family', start: e.start, end: e.end || null, kind: e.kind === 'bday' ? 'bday' : 'plan', time: e.time || '' }));
+      // 백업 파일에 여행 보드가 들어 있으면 함께 불러와요
+      if (Array.isArray(parsed.travel)) state.travel = normalizeTravel(parsed.travel);
+      save();
       saveBoard();
       renderBoardCalendar();
       renderBoardToday();
       renderBoardUpcoming();
+      renderAll();
       toast('일정을 불러왔어요');
     } catch (err) {
       toast('이 파일은 불러올 수 없어요');
@@ -2765,6 +2817,7 @@ function bindBoardEvents() {
       else if (t === 'noeul') focusRecordSection('.study-block[data-member="noeul"]', 'noeul');
       else if (t === 'stamp') focusRecordSection('.card-stamp', null);
       else if (t === 'music') focusRecordSection('.card-juke', null);
+      else if (t === 'travel') setMode('travel');
     });
   });
 
@@ -2845,4 +2898,354 @@ function initBoard() {
     renderBoardTicker();
     renderBoardMusic();
   }, 1000);
+}
+
+/* ============================================================
+   우리 가족 여행 보드 — 여행 간 곳 · 여행 갈 곳
+   다녀온 곳은 🚩 깃발, 가고 싶은 곳은 ⭐ 별로 지도에 표시해요.
+   모든 기록은 이 기기의 localStorage에만 저장됩니다.
+   ============================================================ */
+const tvUI = { region: null };
+const tvEditor = { id: null, status: 'wish' };
+
+function travelActive() {
+  return document.body.classList.contains('is-travel');
+}
+
+function travelOfRegion(rid) {
+  return state.travel.filter(t => t.region === rid);
+}
+
+/** 권역 순서대로 정렬 (지도·목록이 같은 순서로 보이게) */
+function travelSorted() {
+  const order = TRAVEL_REGIONS.map(r => r.id);
+  return state.travel.slice().sort((a, b) => {
+    const ra = order.indexOf(a.region), rb = order.indexOf(b.region);
+    if (ra !== rb) return ra - rb;
+    return String(a.name).localeCompare(String(b.name), 'ko');
+  });
+}
+
+function travelCounts() {
+  return {
+    been: state.travel.filter(t => t.status === 'been').length,
+    wish: state.travel.filter(t => t.status === 'wish').length,
+  };
+}
+
+/* --- 기록장 안의 여행 카드 --- */
+function renderTravelCard() {
+  const c = travelCounts();
+  const beenEl = $('#tvCardBeen'), wishEl = $('#tvCardWish');
+  if (beenEl) beenEl.textContent = c.been;
+  if (wishEl) wishEl.textContent = c.wish;
+  const box = $('#tvCardPreview');
+  if (!box) return;
+  const recentBeen = state.travel.filter(t => t.status === 'been').slice(-2).reverse();
+  const wish = state.travel.filter(t => t.status === 'wish').slice(0, 2);
+  const rows = [...recentBeen, ...wish];
+  box.innerHTML = rows.length
+    ? rows.map(t => {
+        const r = TV_REGION_MAP[t.region] || TV_REGION_MAP.world;
+        return `<div class="tv-card-row">
+          <span aria-hidden="true">${t.status === 'been' ? '🚩' : '⭐'}</span>
+          <strong>${esc(t.name)}</strong>
+          <em>${esc(r.name)}${t.when ? ' · ' + esc(t.when) : ''}</em>
+        </div>`;
+      }).join('')
+    : `<p class="tv-card-empty">아직 여행 기록이 없어요 — 첫 여행지를 추가해 보세요!</p>`;
+}
+
+/* --- 지도 핀 --- */
+function renderTravelMap() {
+  const pins = $('#tvPins');
+  if (!pins) return;
+  pins.innerHTML = TRAVEL_REGIONS.map(r => {
+    const items = travelOfRegion(r.id);
+    const been = items.filter(i => i.status === 'been').length;
+    const wish = items.filter(i => i.status === 'wish').length;
+    const stateCls = been ? 'is-been' : (wish ? 'is-wish' : 'is-none');
+    const emoji = been ? '🚩' : (wish ? '⭐' : '');
+    const active = tvUI.region === r.id;
+    const aria = `${r.name} · 다녀온 곳 ${been}곳 · 가고 싶은 곳 ${wish}곳 — 눌러서 이 지역만 모아 보기`;
+    return `<button class="tv-pin ${stateCls}${active ? ' is-active' : ''}" type="button" data-region="${r.id}"
+        style="left:${r.x}%;top:${r.y}%" aria-label="${esc(aria)}" aria-pressed="${active}">
+      <span class="tv-pin-mark">
+        <span class="tv-pin-dot" aria-hidden="true">${emoji}</span>
+        ${items.length ? `<span class="tv-pin-count" aria-hidden="true">${items.length}</span>` : ''}
+      </span>
+      <span class="tv-pin-label">${esc(r.short)}</span>
+    </button>`;
+  }).join('');
+}
+
+/* --- 권역 칩 · 필터 안내 --- */
+function renderTravelChips() {
+  const el = $('#tvRegionChips');
+  if (!el) return;
+  el.innerHTML = `<button class="tv-chip ${tvUI.region ? '' : 'is-active'}" type="button" data-region="all">전체 ${state.travel.length}</button>` +
+    TRAVEL_REGIONS.map(r => {
+      const n = travelOfRegion(r.id).length;
+      return `<button class="tv-chip ${tvUI.region === r.id ? 'is-active' : ''}" type="button" data-region="${r.id}">${r.emoji} ${esc(r.name)}${n ? ' ' + n : ''}</button>`;
+    }).join('');
+
+  const bar = $('#tvFilterBar');
+  if (!bar) return;
+  const r = TV_REGION_MAP[tvUI.region];
+  if (r) {
+    bar.hidden = false;
+    bar.innerHTML = `<span>🔎 <strong>${esc(r.name)}</strong> 지역만 보는 중</span>
+      <button class="tv-chip" type="button" data-tv-act="filter-add">＋ 이 지역에 추가</button>
+      <button class="tv-chip" type="button" data-tv-act="filter-clear">전체 보기</button>`;
+  } else {
+    bar.hidden = true;
+    bar.innerHTML = '';
+  }
+}
+
+/* --- 목록 --- */
+function renderTravelList(el, items, emptyText, status) {
+  if (!el) return;
+  if (!items.length) {
+    el.innerHTML = `<p class="tv-empty">${emptyText}</p>`;
+    return;
+  }
+  el.innerHTML = items.map(t => {
+    const r = TV_REGION_MAP[t.region] || TV_REGION_MAP.world;
+    return `<div class="tv-item is-${status}" data-id="${t.id}" data-region="${t.region}">
+      <div class="tv-item-main">
+        <div class="tv-item-top">
+          <strong>${esc(t.name)}</strong>
+          <span class="tv-item-region">${r.emoji} ${esc(r.name)}</span>
+        </div>
+        ${t.when ? `<span class="tv-item-when">${status === 'been' ? '' : '목표 · '}${esc(t.when)}</span>` : ''}
+        ${t.memo ? `<p class="tv-item-memo">${esc(t.memo)}</p>` : ''}
+      </div>
+      <div class="tv-item-actions">
+        ${status === 'wish' ? `<button class="tv-mini-btn been" type="button" data-act="tv-been" aria-label="${esc(t.name)} 다녀온 곳으로 옮기기">다녀왔어요 🚩</button>` : ''}
+        <button class="tv-mini-btn" type="button" data-act="tv-edit" aria-label="${esc(t.name)} 수정">✏️</button>
+        <button class="tv-mini-btn danger" type="button" data-act="tv-del" aria-label="${esc(t.name)} 삭제">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderTravel() {
+  const c = travelCounts();
+  const setText = (sel, v) => { const el = $(sel); if (el) el.textContent = v; };
+  setText('#tvBeenCount', c.been);
+  setText('#tvWishCount', c.wish);
+  setText('#tvBeenListCount', c.been);
+  setText('#tvWishListCount', c.wish);
+
+  renderTravelMap();
+  renderTravelChips();
+
+  const filter = tvUI.region;
+  const list = travelSorted().filter(t => !filter || t.region === filter);
+  const where = filter && TV_REGION_MAP[filter] ? `${TV_REGION_MAP[filter].name}에 ` : '';
+  renderTravelList(
+    $('#tvBeenList'),
+    list.filter(t => t.status === 'been'),
+    `${where}아직 다녀온 곳이 없어요 — ‘다녀왔어요’로 깃발을 꽂아 보세요 🚩`,
+    'been'
+  );
+  renderTravelList(
+    $('#tvWishList'),
+    list.filter(t => t.status === 'wish'),
+    `${where}아직 가고 싶은 곳이 없어요 — 여행지 추가로 별을 꽂아 보세요 ⭐`,
+    'wish'
+  );
+
+  const note = $('#tvMapNote');
+  if (note) note.textContent = filter && TV_REGION_MAP[filter]
+    ? `${TV_REGION_MAP[filter].name} 지역 기록을 모아 봐요`
+    : '지역 핀을 누르면 그 지역 기록만 모아 봐요';
+}
+
+function renderTravelAll() {
+  renderTravelCard();
+  renderTravel();
+}
+
+/* --- 지역 필터 --- */
+function setTravelRegion(rid) {
+  tvUI.region = (rid && rid !== 'all' && TV_REGION_MAP[rid]) ? rid : null;
+  renderTravel();
+}
+
+/* --- 여행지 모달 --- */
+function syncTravelStatusUI() {
+  $$('#modalTravel [data-tv-status]').forEach(b => {
+    const on = b.dataset.tvStatus === tvEditor.status;
+    b.classList.toggle('is-active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  const label = $('#tvWhenLabel');
+  const input = $('#tvWhen');
+  if (label) label.textContent = tvEditor.status === 'been' ? '다녀온 시기' : '가고 싶은 시기';
+  if (input) input.placeholder = tvEditor.status === 'been' ? '예) 2026-08, 여름휴가' : '예) 내년 봄방학, 여름휴가';
+}
+
+function openTravelModal(item = null, presetRegion = null) {
+  tvEditor.id = item ? item.id : null;
+  tvEditor.status = item ? item.status : 'wish';
+  const title = $('#tvModalTitle');
+  if (title) title.textContent = item ? '✏️ 여행지 수정' : '＋ 여행지 추가';
+  $('#tvName').value = item ? item.name : '';
+  const fallback = (tvUI.region && TV_REGION_MAP[tvUI.region]) ? tvUI.region : 'gyeongbuk';
+  $('#tvRegion').value = item ? item.region : (presetRegion && TV_REGION_MAP[presetRegion] ? presetRegion : fallback);
+  $('#tvWhen').value = item ? item.when : '';
+  $('#tvMemo').value = item ? item.memo : '';
+  $('#tvDelete').hidden = !item;
+  syncTravelStatusUI();
+  openModal('modalTravel');
+  setTimeout(() => { const n = $('#tvName'); if (n) n.focus({ preventScroll: true }); }, 80);
+}
+
+function saveTravelModal() {
+  const nameInput = $('#tvName');
+  const name = nameInput.value.trim();
+  if (!name) { toast('여행지 이름을 적어 주세요'); nameInput.focus(); return; }
+  const region = TV_REGION_MAP[$('#tvRegion').value] ? $('#tvRegion').value : 'world';
+  const data = {
+    name: name.slice(0, 20),
+    region,
+    status: tvEditor.status === 'been' ? 'been' : 'wish',
+    when: $('#tvWhen').value.trim().slice(0, 20),
+    memo: $('#tvMemo').value.trim().slice(0, 40),
+  };
+  const editing = !!tvEditor.id;
+  if (editing) {
+    const it = state.travel.find(t => t.id === tvEditor.id);
+    if (it) Object.assign(it, data);
+  } else {
+    state.travel.push(Object.assign({ id: uid() }, data));
+  }
+  save();
+  closeModal('modalTravel');
+  renderTravelAll();
+  renderBoardTicker();
+  toast(editing ? '여행지를 고쳤어요 ✈️' : (data.status === 'been' ? '깃발을 꽂았어요 🚩' : '별을 꽂았어요 ⭐'));
+}
+
+function deleteTravelItem(id) {
+  const it = state.travel.find(t => t.id === id);
+  if (!it) return;
+  if (!confirm(`‘${it.name}’ 여행 기록을 지울까요?`)) return;
+  state.travel = state.travel.filter(t => t.id !== id);
+  save();
+  renderTravelAll();
+  renderBoardTicker();
+  toast('여행 기록을 지웠어요');
+}
+
+function deleteTravelModal() {
+  if (!tvEditor.id) return;
+  const it = state.travel.find(t => t.id === tvEditor.id);
+  if (!it) return;
+  if (!confirm(`‘${it.name}’ 여행 기록을 지울까요?`)) return;
+  state.travel = state.travel.filter(t => t.id !== tvEditor.id);
+  save();
+  closeModal('modalTravel');
+  renderTravelAll();
+  renderBoardTicker();
+  toast('여행 기록을 지웠어요');
+}
+
+/** ⭐ 가고 싶은 곳 → 🚩 다녀온 곳으로 한 번에 */
+function markTravelBeen(id, btn) {
+  const it = state.travel.find(t => t.id === id);
+  if (!it) return;
+  it.status = 'been';
+  save();
+  if (btn) {
+    const r = btn.getBoundingClientRect();
+    confetti(r.left + r.width / 2 - 8, r.top - 6, 18);
+  }
+  renderTravelAll();
+  renderBoardTicker();
+  toast(`${it.name} 다녀왔어요! 깃발을 꽂았어요 🚩`);
+}
+
+/* --- 이벤트 연결 --- */
+function travelListClick(e) {
+  const row = e.target.closest('.tv-item');
+  if (!row) return;
+  const act = e.target.closest('[data-act]');
+  if (!act) return;
+  const id = row.dataset.id;
+  if (act.dataset.act === 'tv-been') markTravelBeen(id, act);
+  else if (act.dataset.act === 'tv-del') deleteTravelItem(id);
+  else if (act.dataset.act === 'tv-edit') {
+    const it = state.travel.find(t => t.id === id);
+    if (it) openTravelModal(it);
+  }
+}
+
+function bindTravelEvents() {
+  const sel = $('#tvRegion');
+  if (sel) {
+    sel.innerHTML = TRAVEL_REGIONS.map(r => `<option value="${r.id}">${r.emoji} ${esc(r.name)}</option>`).join('');
+  }
+
+  const fromCard = $('#btnTravelFromCard');
+  if (fromCard) fromCard.addEventListener('click', () => setMode('travel'));
+  const back = $('#btnTravelBack');
+  if (back) back.addEventListener('click', () => setMode('record'));
+  const toBoard = $('#btnTravelToBoard');
+  if (toBoard) toBoard.addEventListener('click', () => setMode('board'));
+  const addBtn = $('#btnTravelAdd');
+  if (addBtn) addBtn.addEventListener('click', () => openTravelModal(null));
+
+  const pins = $('#tvPins');
+  if (pins) pins.addEventListener('click', e => {
+    const pin = e.target.closest('.tv-pin');
+    if (!pin) return;
+    setTravelRegion(tvUI.region === pin.dataset.region ? null : pin.dataset.region);
+  });
+
+  const chips = $('#tvRegionChips');
+  if (chips) chips.addEventListener('click', e => {
+    const chip = e.target.closest('[data-region]');
+    if (!chip) return;
+    setTravelRegion(chip.dataset.region);
+  });
+
+  const bar = $('#tvFilterBar');
+  if (bar) bar.addEventListener('click', e => {
+    const btn = e.target.closest('[data-tv-act]');
+    if (!btn) return;
+    if (btn.dataset.tvAct === 'filter-clear') setTravelRegion(null);
+    else if (btn.dataset.tvAct === 'filter-add') openTravelModal(null, tvUI.region);
+  });
+
+  ['#tvBeenList', '#tvWishList'].forEach(s => {
+    const el = $(s);
+    if (el) el.addEventListener('click', travelListClick);
+  });
+
+  $$('#modalTravel [data-tv-status]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tvEditor.status = btn.dataset.tvStatus === 'been' ? 'been' : 'wish';
+      syncTravelStatusUI();
+    });
+  });
+  const saveBtn = $('#tvSave');
+  if (saveBtn) saveBtn.addEventListener('click', saveTravelModal);
+  const delBtn = $('#tvDelete');
+  if (delBtn) delBtn.addEventListener('click', deleteTravelModal);
+  const nameInput = $('#tvName');
+  if (nameInput) nameInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); saveTravelModal(); }
+  });
+  const memoInput = $('#tvMemo');
+  if (memoInput) memoInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); saveTravelModal(); }
+  });
+}
+
+function initTravel() {
+  bindTravelEvents();
+  renderTravelAll();
 }
