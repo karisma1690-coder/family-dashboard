@@ -38,40 +38,98 @@ const JUKE_PRESETS = [
 ];
 const JUKE_RECENT_MAX = 6;
 
-/* 여행 보드 — 권역 (지도 위 위치는 지도 너비·높이의 %예요) */
-const TRAVEL_REGIONS = [
-  { id: 'seoul',     name: '서울·경기', short: '서울',      emoji: '🏙️', x: 25, y: 24 },
-  { id: 'gangwon',   name: '강원',      short: '강원',      emoji: '⛰️', x: 59, y: 26 },
-  { id: 'chung',     name: '충청',      short: '충청',      emoji: '🌰', x: 36, y: 41 },
-  { id: 'gyeongbuk', name: '경주·대구', short: '경주·대구', emoji: '🏯', x: 60, y: 50 },
-  { id: 'ulsan',     name: '울산',      short: '울산',      emoji: '⚓', x: 71, y: 60 },
-  { id: 'busan',     name: '부산',      short: '부산',      emoji: '🌊', x: 66, y: 68 },
-  { id: 'jeolla',    name: '여수·전라', short: '전라',      emoji: '🍃', x: 31, y: 62 },
-  { id: 'jeju',      name: '제주',      short: '제주',      emoji: '🍊', x: 29, y: 85 },
-  { id: 'world',     name: '해외·기타', short: '해외',      emoji: '✈️', x: 88, y: 81 },
+/* 여행 보드 — 국내 권역 (한국 지도 · 위치는 지도 너비·높이의 %예요) */
+const KR_REGIONS = [
+  { id: 'seoul',     name: '서울·경기', short: '서울',      emoji: '🏙️', map: 'kr', x: 25, y: 24 },
+  { id: 'gangwon',   name: '강원',      short: '강원',      emoji: '⛰️', map: 'kr', x: 59, y: 26 },
+  { id: 'chung',     name: '충청',      short: '충청',      emoji: '🌰', map: 'kr', x: 36, y: 41 },
+  { id: 'gyeongbuk', name: '경주·대구', short: '경주·대구', emoji: '🏯', map: 'kr', x: 60, y: 50 },
+  { id: 'ulsan',     name: '울산',      short: '울산',      emoji: '⚓', map: 'kr', x: 71, y: 60 },
+  { id: 'busan',     name: '부산',      short: '부산',      emoji: '🌊', map: 'kr', x: 66, y: 68 },
+  { id: 'jeolla',    name: '여수·전라', short: '전라',      emoji: '🍃', map: 'kr', x: 31, y: 62 },
+  { id: 'jeju',      name: '제주',      short: '제주',      emoji: '🍊', map: 'kr', x: 29, y: 85 },
+  { id: 'world',     name: '해외·기타', short: '해외',      emoji: '✈️', map: 'kr', x: 88, y: 81 },
 ];
+
+/* 여행 보드 — 세계 권역 (세계 지도)
+   'kr'은 국내 권역 전체를 한 핀으로 묶은 자리표시예요. */
+const WORLD_REGIONS = [
+  { id: 'kr',       name: '한국',        short: '한국',      emoji: '🗺️', map: 'world', x: 85.4, y: 29.4, labelSide: 'left' },
+  { id: 'eastasia', name: '일본·동아시아', short: '동아시아',  emoji: '🗾', map: 'world', x: 91.6, y: 29.8 },
+  { id: 'seasia',   name: '동남아',      short: '동남아',    emoji: '🌴', map: 'world', x: 80.6, y: 49.8 },
+  { id: 'europe',   name: '유럽',        short: '유럽',      emoji: '🏰', map: 'world', x: 54.2, y: 20.7 },
+  { id: 'namerica', name: '북미',        short: '북미',      emoji: '🗽', map: 'world', x: 22.2, y: 24.0 },
+  { id: 'samerica', name: '남미',        short: '남미',      emoji: '🌎', map: 'world', x: 33.3, y: 62.7 },
+  { id: 'oceania',  name: '오세아니아',  short: '오세아니아', emoji: '🦘', map: 'world', x: 87.2, y: 69.2 },
+  { id: 'meafrica', name: '중동·아프리카', short: '중동·아프리카', emoji: '🦁', map: 'world', x: 58.3, y: 46.6 },
+];
+
+const TRAVEL_REGIONS = KR_REGIONS.concat(WORLD_REGIONS);
 const TV_REGION_MAP = Object.fromEntries(TRAVEL_REGIONS.map(r => [r.id, r]));
+const TV_PHOTO_MAX = 3;
+const TV_PHOTO_SIDE = 640;
+const TV_PHOTO_QUALITY = 0.72;
 
 /** 여행 보드 처음 모습 — 가볍고 일반적인 예시만 둬요 (공개 페이지라 민감정보 없음) */
 function defaultTravel() {
   return [
-    { id: uid(), name: '경주',   region: 'gyeongbuk', status: 'been', when: '2025-08',      memo: '불국사랑 황리단길 산책' },
-    { id: uid(), name: '제주도', region: 'jeju',      status: 'wish', when: '다음 봄방학',  memo: '바다 보고 싶어요' },
+    {
+      id: uid(), name: '경주', region: 'gyeongbuk', status: 'been', when: '2025-08',
+      memo: '불국사랑 황리단길 산책',
+      start: '2025-08-09', end: '2025-08-10',
+      plan: '1일차 불국사·석굴암\n1일차 황리단길 산책\n2일차 첨성대 야경\n2일차 감은사지 들르기',
+      photos: [], calSync: false, eventId: '',
+    },
+    {
+      id: uid(), name: '제주도', region: 'jeju', status: 'wish', when: '다음 봄방학',
+      memo: '바다 보고 싶어요', start: '', end: '', plan: '',
+      photos: [], calSync: false, eventId: '',
+    },
   ];
+}
+
+const TV_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TV_IMG_RE = /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/;
+
+/** 저장·불러오기에서 쓸 사진 주소만 통과시켜요 (엉뚱한 주소 차단) */
+function safePhoto(src) {
+  const s = String(src || '');
+  return TV_IMG_RE.test(s) ? s : '';
+}
+
+function travelPlanLines(plan) {
+  return String(plan || '')
+    .split('\n')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .slice(0, 40);
 }
 
 function normalizeTravel(list) {
   if (!Array.isArray(list)) return defaultTravel();
   return list
     .filter(t => t && t.name)
-    .map(t => ({
-      id: t.id || uid(),
-      name: String(t.name).slice(0, 20),
-      region: TV_REGION_MAP[t.region] ? t.region : 'world',
-      status: t.status === 'been' ? 'been' : 'wish',
-      when: String(t.when || '').slice(0, 20),
-      memo: String(t.memo || '').slice(0, 40),
-    }));
+    .map(t => {
+      let start = TV_DATE_RE.test(String(t.start || '')) ? String(t.start) : '';
+      let end = TV_DATE_RE.test(String(t.end || '')) ? String(t.end) : '';
+      if (start && end && end < start) { const tmp = start; start = end; end = tmp; }
+      const photos = (Array.isArray(t.photos) ? t.photos : [])
+        .map(safePhoto).filter(Boolean).slice(0, TV_PHOTO_MAX);
+      return {
+        id: t.id || uid(),
+        name: String(t.name).slice(0, 20),
+        region: TV_REGION_MAP[t.region] ? t.region : 'world',
+        status: t.status === 'been' ? 'been' : 'wish',
+        when: String(t.when || '').slice(0, 20),
+        memo: String(t.memo || '').slice(0, 40),
+        start,
+        end: start && end ? end : '',
+        plan: String(t.plan || '').slice(0, 400),
+        photos,
+        calSync: !!t.calSync && !!start,
+        eventId: t.eventId ? String(t.eventId) : '',
+      };
+    });
 }
 
 const MEMBERS = [
@@ -2906,17 +2964,37 @@ function initBoard() {
 /* ============================================================
    우리 가족 여행 보드 — 여행 간 곳 · 여행 갈 곳
    다녀온 곳은 🚩 깃발, 가고 싶은 곳은 ⭐ 별로 지도에 표시해요.
+   세계 지도(대륙)와 한국 지도(권역)를 오가며 보고,
+   여행마다 기간·일차별 일정·사진을 함께 기록해요.
    모든 기록은 이 기기의 localStorage에만 저장됩니다.
    ============================================================ */
-const tvUI = { region: null };
-const tvEditor = { id: null, status: 'wish' };
+const TV_MAP_KEY = 'family-dashboard.tvmap.v1';
+const tvUI = { region: null, map: 'world', openPlans: new Set() };
+const tvEditor = { id: null, status: 'wish', photos: [] };
+const tvLight = { id: null, idx: 0 };
 
 function travelActive() {
   return document.body.classList.contains('is-travel');
 }
 
+function currentMapRegions() {
+  return tvUI.map === 'kr' ? KR_REGIONS : WORLD_REGIONS;
+}
+
+function isDomesticRegion(rid) {
+  const r = TV_REGION_MAP[rid];
+  return !!r && r.map === 'kr' && r.id !== 'world';
+}
+
+/** 필터(권역 id 또는 'kr' = 국내 전체)에 맞는 여행인지 */
+function travelMatches(t, filter) {
+  if (!filter) return true;
+  if (filter === 'kr') return isDomesticRegion(t.region);
+  return t.region === filter;
+}
+
 function travelOfRegion(rid) {
-  return state.travel.filter(t => t.region === rid);
+  return state.travel.filter(t => travelMatches(t, rid));
 }
 
 /** 권역 순서대로 정렬 (지도·목록이 같은 순서로 보이게) */
@@ -2936,6 +3014,14 @@ function travelCounts() {
   };
 }
 
+function tvRangeLabel(t) {
+  if (!t.start) return '';
+  const same = !t.end || t.end === t.start;
+  if (same) return `${t.start} · 1일`;
+  const days = diffDays(t.start, t.end) + 1;
+  return `${t.start} ~ ${t.end} · ${days}일`;
+}
+
 /* --- 기록장 안의 여행 카드 --- */
 function renderTravelCard() {
   const c = travelCounts();
@@ -2950,28 +3036,57 @@ function renderTravelCard() {
   box.innerHTML = rows.length
     ? rows.map(t => {
         const r = TV_REGION_MAP[t.region] || TV_REGION_MAP.world;
+        const extra = [r.name, t.when, (t.photos && t.photos.length) ? `📷${t.photos.length}` : '']
+          .filter(Boolean).join(' · ');
         return `<div class="tv-card-row">
           <span aria-hidden="true">${t.status === 'been' ? '🚩' : '⭐'}</span>
           <strong>${esc(t.name)}</strong>
-          <em>${esc(r.name)}${t.when ? ' · ' + esc(t.when) : ''}</em>
+          <em>${esc(extra)}</em>
         </div>`;
       }).join('')
     : `<p class="tv-card-empty">아직 여행 기록이 없어요 — 첫 여행지를 추가해 보세요!</p>`;
 }
 
+/** hidden 속성은 SVG 요소에서도 확실히 먹도록 attribute로 직접 다뤄요 */
+function setHiddenAttr(el, hide) {
+  if (!el) return;
+  if (hide) el.setAttribute('hidden', '');
+  else el.removeAttribute('hidden');
+}
+
 /* --- 지도 핀 --- */
 function renderTravelMap() {
+  const worldSvg = $('#tvWorldSvg'), krSvg = $('#tvKrSvg'), box = $('#tvMap');
+  const isWorld = tvUI.map !== 'kr';
+  setHiddenAttr(worldSvg, !isWorld);
+  setHiddenAttr(krSvg, isWorld);
+  if (box) {
+    box.classList.toggle('is-world', isWorld);
+    box.classList.toggle('is-kr', !isWorld);
+  }
+  const wBtn = $('#tvMapWorld'), kBtn = $('#tvMapKr');
+  if (wBtn) {
+    wBtn.classList.toggle('is-active', isWorld);
+    wBtn.setAttribute('aria-pressed', String(isWorld));
+  }
+  if (kBtn) {
+    kBtn.classList.toggle('is-active', !isWorld);
+    kBtn.setAttribute('aria-pressed', String(!isWorld));
+  }
+
   const pins = $('#tvPins');
   if (!pins) return;
-  pins.innerHTML = TRAVEL_REGIONS.map(r => {
+  pins.innerHTML = currentMapRegions().map(r => {
     const items = travelOfRegion(r.id);
     const been = items.filter(i => i.status === 'been').length;
     const wish = items.filter(i => i.status === 'wish').length;
     const stateCls = been ? 'is-been' : (wish ? 'is-wish' : 'is-none');
     const emoji = been ? '🚩' : (wish ? '⭐' : '');
     const active = tvUI.region === r.id;
-    const aria = `${r.name} · 다녀온 곳 ${been}곳 · 가고 싶은 곳 ${wish}곳 — 눌러서 이 지역만 모아 보기`;
-    return `<button class="tv-pin ${stateCls}${active ? ' is-active' : ''}" type="button" data-region="${r.id}"
+    const what = r.id === 'kr' ? '국내 여행' : r.name;
+    const aria = `${r.name} · 다녀온 곳 ${been}곳 · 가고 싶은 곳 ${wish}곳 — 눌러서 ${what}만 모아 보기`;
+    const side = r.labelSide ? ` lab-${r.labelSide}` : '';
+    return `<button class="tv-pin ${stateCls}${active ? ' is-active' : ''}${side}" type="button" data-region="${r.id}" data-map="${r.map}"
         style="left:${r.x}%;top:${r.y}%" aria-label="${esc(aria)}" aria-pressed="${active}">
       <span class="tv-pin-mark">
         <span class="tv-pin-dot" aria-hidden="true">${emoji}</span>
@@ -2986,14 +3101,22 @@ function renderTravelMap() {
 function renderTravelChips() {
   const el = $('#tvRegionChips');
   if (!el) return;
-  el.innerHTML = `<button class="tv-chip ${tvUI.region ? '' : 'is-active'}" type="button" data-region="all">전체 ${state.travel.length}</button>` +
-    TRAVEL_REGIONS.map(r => {
-      const n = travelOfRegion(r.id).length;
-      return `<button class="tv-chip ${tvUI.region === r.id ? 'is-active' : ''}" type="button" data-region="${r.id}">${r.emoji} ${esc(r.name)}${n ? ' ' + n : ''}</button>`;
-    }).join('');
+  const chips = currentMapRegions().map(r => {
+    const n = travelOfRegion(r.id).length;
+    const label = r.id === 'kr' ? '한국 (국내 전체)' : r.name;
+    return `<button class="tv-chip ${tvUI.region === r.id ? 'is-active' : ''}" type="button" data-region="${r.id}">${r.emoji} ${esc(label)}${n ? ' ' + n : ''}</button>`;
+  }).join('');
+  el.innerHTML = `<button class="tv-chip ${tvUI.region ? '' : 'is-active'}" type="button" data-region="all">전체 ${state.travel.length}</button>` + chips;
 
   const bar = $('#tvFilterBar');
   if (!bar) return;
+  if (tvUI.region === 'kr') {
+    bar.hidden = false;
+    bar.innerHTML = `<span>🔎 <strong>국내 여행</strong>만 보는 중</span>
+      <button class="tv-chip" type="button" data-tv-act="filter-kr">한국 지도로 보기</button>
+      <button class="tv-chip" type="button" data-tv-act="filter-clear">전체 보기</button>`;
+    return;
+  }
   const r = TV_REGION_MAP[tvUI.region];
   if (r) {
     bar.hidden = false;
@@ -3007,6 +3130,28 @@ function renderTravelChips() {
 }
 
 /* --- 목록 --- */
+function tvPlanHTML(t) {
+  const lines = travelPlanLines(t.plan);
+  if (!lines.length) return '';
+  const open = tvUI.openPlans.has(t.id);
+  const shown = open ? lines : lines.slice(0, 3);
+  const rest = lines.length - shown.length;
+  return `<div class="tv-plan">
+      <ul class="tv-plan-list">${shown.map(l => `<li>${esc(l)}</li>`).join('')}</ul>
+      ${lines.length > 3
+        ? `<button class="tv-plan-toggle" type="button" data-act="tv-plan" data-id="${t.id}">${open ? '일정 접기 ▴' : `일정 ${lines.length - 3}개 더 보기 ▾`}</button>`
+        : ''}
+    </div>`;
+}
+
+function tvPhotosHTML(t) {
+  const photos = (t.photos || []).filter(Boolean);
+  if (!photos.length) return '';
+  return `<div class="tv-thumbs">${photos.map((src, i) => `
+      <button class="tv-thumb" type="button" data-act="tv-photo" data-id="${t.id}" data-idx="${i}"
+        aria-label="${esc(t.name)} 사진 ${i + 1} 크게 보기"><img src="${src}" alt="" loading="lazy"></button>`).join('')}</div>`;
+}
+
 function renderTravelList(el, items, emptyText, status) {
   if (!el) return;
   if (!items.length) {
@@ -3015,6 +3160,7 @@ function renderTravelList(el, items, emptyText, status) {
   }
   el.innerHTML = items.map(t => {
     const r = TV_REGION_MAP[t.region] || TV_REGION_MAP.world;
+    const range = tvRangeLabel(t);
     return `<div class="tv-item is-${status}" data-id="${t.id}" data-region="${t.region}">
       <div class="tv-item-main">
         <div class="tv-item-top">
@@ -3022,7 +3168,11 @@ function renderTravelList(el, items, emptyText, status) {
           <span class="tv-item-region">${r.emoji} ${esc(r.name)}</span>
         </div>
         ${t.when ? `<span class="tv-item-when">${status === 'been' ? '' : '목표 · '}${esc(t.when)}</span>` : ''}
+        ${range ? `<span class="tv-item-range">📅 ${esc(range)}</span>` : ''}
+        ${t.calSync && t.start ? `<span class="tv-item-cal" title="캘린더 보드에 함께 있어요">🗓️ 캘린더</span>` : ''}
         ${t.memo ? `<p class="tv-item-memo">${esc(t.memo)}</p>` : ''}
+        ${tvPlanHTML(t)}
+        ${tvPhotosHTML(t)}
       </div>
       <div class="tv-item-actions">
         ${status === 'wish' ? `<button class="tv-mini-btn been" type="button" data-act="tv-been" aria-label="${esc(t.name)} 다녀온 곳으로 옮기기">다녀왔어요 🚩</button>` : ''}
@@ -3045,8 +3195,10 @@ function renderTravel() {
   renderTravelChips();
 
   const filter = tvUI.region;
-  const list = travelSorted().filter(t => !filter || t.region === filter);
-  const where = filter && TV_REGION_MAP[filter] ? `${TV_REGION_MAP[filter].name}에 ` : '';
+  const list = travelSorted().filter(t => travelMatches(t, filter));
+  const where = filter === 'kr'
+    ? '국내에 '
+    : (filter && TV_REGION_MAP[filter] ? `${TV_REGION_MAP[filter].name}에 ` : '');
   renderTravelList(
     $('#tvBeenList'),
     list.filter(t => t.status === 'been'),
@@ -3061,9 +3213,13 @@ function renderTravel() {
   );
 
   const note = $('#tvMapNote');
-  if (note) note.textContent = filter && TV_REGION_MAP[filter]
-    ? `${TV_REGION_MAP[filter].name} 지역 기록을 모아 봐요`
-    : '지역 핀을 누르면 그 지역 기록만 모아 봐요';
+  if (note) {
+    if (filter === 'kr') note.textContent = '국내 여행만 모아 보고 있어요 — 한국 지도로 바꾸면 지역 핀이 보여요';
+    else if (filter && TV_REGION_MAP[filter]) note.textContent = `${TV_REGION_MAP[filter].name} 기록만 모아 봐요`;
+    else note.textContent = tvUI.map === 'kr'
+      ? '지역 핀을 누르면 그 지역 기록만 모아 봐요'
+      : '대륙 핀을 누르면 그 지역 기록만 모아 봐요';
+  }
 }
 
 function renderTravelAll() {
@@ -3073,7 +3229,15 @@ function renderTravelAll() {
 
 /* --- 지역 필터 --- */
 function setTravelRegion(rid) {
-  tvUI.region = (rid && rid !== 'all' && TV_REGION_MAP[rid]) ? rid : null;
+  tvUI.region = (rid && rid !== 'all' && TV_REGION_MAP[rid]) ? rid : (rid === 'kr' ? 'kr' : null);
+  renderTravel();
+}
+
+/* --- 지도 전환 --- */
+function setTravelMap(map) {
+  tvUI.map = map === 'kr' ? 'kr' : 'world';
+  tvUI.region = null;
+  try { localStorage.setItem(TV_MAP_KEY, tvUI.map); } catch (_) {}
   renderTravel();
 }
 
@@ -3090,20 +3254,163 @@ function syncTravelStatusUI() {
   if (input) input.placeholder = tvEditor.status === 'been' ? '예) 2026-08, 여름휴가' : '예) 내년 봄방학, 여름휴가';
 }
 
+function syncPlanDayButton() {
+  const ta = $('#tvPlan');
+  const btn = $('#btnTvPlanDay');
+  const hint = $('#tvPlanHint');
+  if (!ta) return;
+  const lines = travelPlanLines(ta.value);
+  let next = 1;
+  lines.forEach(l => {
+    const m = /^(\d{1,2})\s*일차/.exec(l);
+    if (m) next = Math.max(next, Number(m[1]) + 1);
+  });
+  if (btn) btn.textContent = `＋ ${next}일차 추가`;
+  if (hint) hint.textContent = lines.length ? `일정 ${lines.length}개 적었어요` : '줄마다 일정 하나씩 적어요';
+  return next;
+}
+
+function addPlanDay() {
+  const ta = $('#tvPlan');
+  if (!ta) return;
+  if (ta.value.length > 380) { toast('일정은 400자까지 적을 수 있어요'); return; }
+  const next = syncPlanDayButton() || 1;
+  const base = ta.value.replace(/\s+$/, '');
+  ta.value = (base ? base + '\n' : '') + `${next}일차 `;
+  syncPlanDayButton();
+  ta.focus({ preventScroll: true });
+  ta.scrollTop = ta.scrollHeight;
+}
+
+function renderTvPhotoEdit() {
+  const box = $('#tvPhotoEdit');
+  if (box) {
+    box.innerHTML = tvEditor.photos.map((src, i) => `
+      <div class="tv-photo-item">
+        <img src="${src}" alt="넣은 사진 ${i + 1}">
+        <button class="tv-photo-del" type="button" data-del="${i}" aria-label="사진 ${i + 1} 빼기">✕</button>
+      </div>`).join('');
+  }
+  const full = tvEditor.photos.length >= TV_PHOTO_MAX;
+  const pick = $('#btnTvPhotoPick');
+  if (pick) {
+    pick.disabled = full;
+    pick.textContent = full ? `📷 사진 ${TV_PHOTO_MAX}장을 모두 담았어요` : '📷 사진 넣기 (자동으로 줄여서 저장)';
+  }
+  const input = $('#tvPhotoInput');
+  if (input) input.disabled = full;
+}
+
+/** 사진을 긴 변 640px · JPEG 0.72로 줄여 Data URL로 만들어요 (localStorage 절약) */
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('image'));
+      img.onload = () => {
+        try {
+          const srcW = img.naturalWidth || img.width || 1;
+          const srcH = img.naturalHeight || img.height || 1;
+          const scale = Math.min(1, TV_PHOTO_SIDE / Math.max(srcW, srcH));
+          const w = Math.max(1, Math.round(srcW * scale));
+          const h = Math.max(1, Math.round(srcH * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', TV_PHOTO_QUALITY));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function addTravelPhotos(files) {
+  const list = Array.from(files || []);
+  if (!list.length) return;
+  const room = TV_PHOTO_MAX - tvEditor.photos.length;
+  if (room <= 0) { toast(`사진은 ${TV_PHOTO_MAX}장까지 넣을 수 있어요`); return; }
+  if (list.length > room) toast(`사진은 ${TV_PHOTO_MAX}장까지예요 — ${room}장만 담았어요`);
+  const pick = list.slice(0, room);
+  let failed = 0;
+  for (const f of pick) {
+    if (!f || !/^image\//.test(f.type || '')) { failed++; continue; }
+    try {
+      const url = safePhoto(await compressImage(f));
+      if (url) tvEditor.photos.push(url);
+      else failed++;
+    } catch (_) {
+      failed++;
+    }
+  }
+  renderTvPhotoEdit();
+  if (failed) toast('사진을 읽지 못한 게 있어요');
+  else toast(`사진 ${tvEditor.photos.length}장을 담았어요 📷`);
+}
+
 function openTravelModal(item = null, presetRegion = null) {
   tvEditor.id = item ? item.id : null;
   tvEditor.status = item ? item.status : 'wish';
+  tvEditor.photos = item ? (item.photos || []).filter(Boolean).slice(0, TV_PHOTO_MAX) : [];
   const title = $('#tvModalTitle');
   if (title) title.textContent = item ? '✏️ 여행지 수정' : '＋ 여행지 추가';
   $('#tvName').value = item ? item.name : '';
-  const fallback = (tvUI.region && TV_REGION_MAP[tvUI.region]) ? tvUI.region : 'gyeongbuk';
+  const fallback = (tvUI.region && TV_REGION_MAP[tvUI.region] && tvUI.region !== 'kr') ? tvUI.region
+    : (tvUI.map === 'kr' ? 'gyeongbuk' : 'eastasia');
   $('#tvRegion').value = item ? item.region : (presetRegion && TV_REGION_MAP[presetRegion] ? presetRegion : fallback);
   $('#tvWhen').value = item ? item.when : '';
+  $('#tvStart').value = item ? (item.start || '') : '';
+  $('#tvEnd').value = item ? (item.end || '') : '';
+  $('#tvPlan').value = item ? (item.plan || '') : '';
+  $('#tvCalSync').checked = item ? !!item.calSync : false;
   $('#tvMemo').value = item ? item.memo : '';
   $('#tvDelete').hidden = !item;
   syncTravelStatusUI();
+  syncPlanDayButton();
+  renderTvPhotoEdit();
   openModal('modalTravel');
   setTimeout(() => { const n = $('#tvName'); if (n) n.focus({ preventScroll: true }); }, 80);
+}
+
+/* --- 캘린더 보드 연동 --- */
+function removeTravelEvent(item) {
+  if (!item || !item.eventId) return;
+  board.events = board.events.filter(e => e.id !== item.eventId);
+  item.eventId = '';
+}
+
+function syncTravelEvent(item) {
+  if (!item) return;
+  const want = !!item.calSync && !!item.start;
+  const ev = item.eventId ? board.events.find(e => e.id === item.eventId) : null;
+  if (!want) {
+    if (ev) removeTravelEvent(item);
+    return;
+  }
+  const data = {
+    title: `✈️ ${item.name} 여행`.slice(0, 30),
+    member: 'family',
+    start: item.start,
+    end: item.end || null,
+    kind: 'plan',
+    time: '',
+  };
+  if (ev) {
+    Object.assign(ev, data);
+  } else {
+    const fresh = Object.assign({ id: uid() }, data);
+    board.events.push(fresh);
+    item.eventId = fresh.id;
+  }
 }
 
 function saveTravelModal() {
@@ -3111,35 +3418,68 @@ function saveTravelModal() {
   const name = nameInput.value.trim();
   if (!name) { toast('여행지 이름을 적어 주세요'); nameInput.focus(); return; }
   const region = TV_REGION_MAP[$('#tvRegion').value] ? $('#tvRegion').value : 'world';
+  let start = $('#tvStart').value || '';
+  let end = $('#tvEnd').value || '';
+  if (start && !TV_DATE_RE.test(start)) start = '';
+  if (end && !TV_DATE_RE.test(end)) end = '';
+  if (end && !start) { start = end; end = ''; }
+  if (start && end && end < start) { const tmp = start; start = end; end = tmp; }
+  const plan = $('#tvPlan').value.replace(/\r/g, '').slice(0, 400).replace(/\s+$/, '');
+  let calSync = $('#tvCalSync').checked;
+  if (calSync && !start) {
+    calSync = false;
+    toast('시작일을 골라야 캘린더에 넣을 수 있어요');
+  }
   const data = {
     name: name.slice(0, 20),
     region,
     status: tvEditor.status === 'been' ? 'been' : 'wish',
     when: $('#tvWhen').value.trim().slice(0, 20),
     memo: $('#tvMemo').value.trim().slice(0, 40),
+    start,
+    end: start ? end : '',
+    plan,
+    photos: tvEditor.photos.filter(Boolean).slice(0, TV_PHOTO_MAX),
+    calSync,
   };
   const editing = !!tvEditor.id;
+  let item = null;
   if (editing) {
-    const it = state.travel.find(t => t.id === tvEditor.id);
-    if (it) Object.assign(it, data);
+    item = state.travel.find(t => t.id === tvEditor.id);
+    if (item) {
+      if (!data.calSync && item.eventId) removeTravelEvent(item);
+      Object.assign(item, data);
+    }
   } else {
-    state.travel.push(Object.assign({ id: uid() }, data));
+    item = Object.assign({ id: uid(), eventId: '' }, data);
+    state.travel.push(item);
   }
+  if (item) syncTravelEvent(item);
   save();
+  saveBoard();
   closeModal('modalTravel');
   renderTravelAll();
   renderBoardTicker();
-  toast(editing ? '여행지를 고쳤어요 ✈️' : (data.status === 'been' ? '깃발을 꽂았어요 🚩' : '별을 꽂았어요 ⭐'));
+  if (boardActive()) { renderBoardCalendar(); renderBoardToday(); renderBoardUpcoming(); }
+  const bits = [];
+  if (data.start) bits.push('🗓️');
+  if (data.photos.length) bits.push('📷' + data.photos.length);
+  toast(editing
+    ? `여행지를 고쳤어요 ${bits.join(' ')}`.trim()
+    : (data.status === 'been' ? '깃발을 꽂았어요 🚩' : '별을 꽂았어요 ⭐'));
 }
 
 function deleteTravelItem(id) {
   const it = state.travel.find(t => t.id === id);
   if (!it) return;
   if (!confirm(`‘${it.name}’ 여행 기록을 지울까요?`)) return;
+  removeTravelEvent(it);
   state.travel = state.travel.filter(t => t.id !== id);
   save();
+  saveBoard();
   renderTravelAll();
   renderBoardTicker();
+  if (boardActive()) { renderBoardCalendar(); renderBoardToday(); renderBoardUpcoming(); }
   toast('여행 기록을 지웠어요');
 }
 
@@ -3148,11 +3488,14 @@ function deleteTravelModal() {
   const it = state.travel.find(t => t.id === tvEditor.id);
   if (!it) return;
   if (!confirm(`‘${it.name}’ 여행 기록을 지울까요?`)) return;
+  removeTravelEvent(it);
   state.travel = state.travel.filter(t => t.id !== tvEditor.id);
   save();
+  saveBoard();
   closeModal('modalTravel');
   renderTravelAll();
   renderBoardTicker();
+  if (boardActive()) { renderBoardCalendar(); renderBoardToday(); renderBoardUpcoming(); }
   toast('여행 기록을 지웠어요');
 }
 
@@ -3171,6 +3514,61 @@ function markTravelBeen(id, btn) {
   toast(`${it.name} 다녀왔어요! 깃발을 꽂았어요 🚩`);
 }
 
+/* --- 사진 크게 보기 --- */
+function renderPhotoLightbox() {
+  const item = state.travel.find(t => t.id === tvLight.id);
+  const photos = (item && item.photos) || [];
+  if (!item || !photos.length) { closeModal('modalPhoto'); return; }
+  tvLight.idx = clamp(tvLight.idx, 0, photos.length - 1);
+  const img = $('#tvLightImg');
+  if (img) {
+    img.src = photos[tvLight.idx];
+    img.alt = `${item.name} 여행 사진 ${tvLight.idx + 1}`;
+  }
+  const cap = $('#tvLightCap');
+  if (cap) cap.textContent = `${item.name} · ${tvLight.idx + 1} / ${photos.length}`;
+  const title = $('#tvPhotoTitle');
+  if (title) title.textContent = `📷 ${item.name}`;
+  const prev = $('#btnTvPhotoPrev'), next = $('#btnTvPhotoNext');
+  if (prev) prev.disabled = photos.length < 2;
+  if (next) next.disabled = photos.length < 2;
+}
+
+function openPhotoLightbox(id, idx = 0) {
+  const item = state.travel.find(t => t.id === id);
+  const photos = (item && item.photos) || [];
+  if (!photos.length) return;
+  tvLight.id = id;
+  tvLight.idx = clamp(Number(idx) || 0, 0, photos.length - 1);
+  renderPhotoLightbox();
+  openModal('modalPhoto');
+}
+
+function lightboxStep(step) {
+  const item = state.travel.find(t => t.id === tvLight.id);
+  const n = item && item.photos ? item.photos.length : 0;
+  if (n < 2) return;
+  tvLight.idx = (tvLight.idx + step + n) % n;
+  renderPhotoLightbox();
+}
+
+function deleteLightboxPhoto() {
+  const item = state.travel.find(t => t.id === tvLight.id);
+  if (!item || !item.photos || !item.photos.length) return;
+  if (!confirm('이 사진을 지울까요?')) return;
+  item.photos.splice(tvLight.idx, 1);
+  save();
+  renderTravelAll();
+  if (!item.photos.length) {
+    closeModal('modalPhoto');
+    toast('사진을 지웠어요');
+    return;
+  }
+  tvLight.idx = Math.min(tvLight.idx, item.photos.length - 1);
+  renderPhotoLightbox();
+  toast('사진을 지웠어요');
+}
+
 /* --- 이벤트 연결 --- */
 function travelListClick(e) {
   const row = e.target.closest('.tv-item');
@@ -3180,7 +3578,12 @@ function travelListClick(e) {
   const id = row.dataset.id;
   if (act.dataset.act === 'tv-been') markTravelBeen(id, act);
   else if (act.dataset.act === 'tv-del') deleteTravelItem(id);
-  else if (act.dataset.act === 'tv-edit') {
+  else if (act.dataset.act === 'tv-photo') openPhotoLightbox(id, act.dataset.idx);
+  else if (act.dataset.act === 'tv-plan') {
+    if (tvUI.openPlans.has(id)) tvUI.openPlans.delete(id);
+    else tvUI.openPlans.add(id);
+    renderTravel();
+  } else if (act.dataset.act === 'tv-edit') {
     const it = state.travel.find(t => t.id === id);
     if (it) openTravelModal(it);
   }
@@ -3189,7 +3592,8 @@ function travelListClick(e) {
 function bindTravelEvents() {
   const sel = $('#tvRegion');
   if (sel) {
-    sel.innerHTML = TRAVEL_REGIONS.map(r => `<option value="${r.id}">${r.emoji} ${esc(r.name)}</option>`).join('');
+    sel.innerHTML = `<optgroup label="국내">${KR_REGIONS.map(r => `<option value="${r.id}">${r.emoji} ${esc(r.name)}</option>`).join('')}</optgroup>`
+      + `<optgroup label="🌏 해외">${WORLD_REGIONS.filter(r => r.id !== 'kr').map(r => `<option value="${r.id}">${r.emoji} ${esc(r.name)}</option>`).join('')}</optgroup>`;
   }
 
   const fromCard = $('#btnTravelFromCard');
@@ -3200,6 +3604,11 @@ function bindTravelEvents() {
   if (toBoard) toBoard.addEventListener('click', () => setMode('board'));
   const addBtn = $('#btnTravelAdd');
   if (addBtn) addBtn.addEventListener('click', () => openTravelModal(null));
+
+  const wBtn = $('#tvMapWorld');
+  if (wBtn) wBtn.addEventListener('click', () => setTravelMap('world'));
+  const kBtn = $('#tvMapKr');
+  if (kBtn) kBtn.addEventListener('click', () => setTravelMap('kr'));
 
   const pins = $('#tvPins');
   if (pins) pins.addEventListener('click', e => {
@@ -3220,6 +3629,7 @@ function bindTravelEvents() {
     const btn = e.target.closest('[data-tv-act]');
     if (!btn) return;
     if (btn.dataset.tvAct === 'filter-clear') setTravelRegion(null);
+    else if (btn.dataset.tvAct === 'filter-kr') setTravelMap('kr');
     else if (btn.dataset.tvAct === 'filter-add') openTravelModal(null, tvUI.region);
   });
 
@@ -3234,6 +3644,7 @@ function bindTravelEvents() {
       syncTravelStatusUI();
     });
   });
+
   const saveBtn = $('#tvSave');
   if (saveBtn) saveBtn.addEventListener('click', saveTravelModal);
   const delBtn = $('#tvDelete');
@@ -3246,9 +3657,45 @@ function bindTravelEvents() {
   if (memoInput) memoInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); saveTravelModal(); }
   });
+
+  const planInput = $('#tvPlan');
+  if (planInput) planInput.addEventListener('input', syncPlanDayButton);
+  const planDayBtn = $('#btnTvPlanDay');
+  if (planDayBtn) planDayBtn.addEventListener('click', addPlanDay);
+
+  const pickBtn = $('#btnTvPhotoPick');
+  const photoInput = $('#tvPhotoInput');
+  if (pickBtn && photoInput) pickBtn.addEventListener('click', () => photoInput.click());
+  if (photoInput) photoInput.addEventListener('change', e => {
+    const files = e.target.files;
+    addTravelPhotos(files).then(() => { e.target.value = ''; });
+  });
+
+  const editBox = $('#tvPhotoEdit');
+  if (editBox) {
+    editBox.addEventListener('click', e => {
+      const btn = e.target.closest('[data-del]');
+      if (!btn) return;
+      const i = Number(btn.dataset.del);
+      if (!Number.isInteger(i)) return;
+      tvEditor.photos.splice(i, 1);
+      renderTvPhotoEdit();
+    });
+  }
+
+  const lightPrev = $('#btnTvPhotoPrev');
+  if (lightPrev) lightPrev.addEventListener('click', () => lightboxStep(-1));
+  const lightNext = $('#btnTvPhotoNext');
+  if (lightNext) lightNext.addEventListener('click', () => lightboxStep(1));
+  const lightDel = $('#btnTvPhotoDel');
+  if (lightDel) lightDel.addEventListener('click', deleteLightboxPhoto);
 }
 
 function initTravel() {
+  try {
+    const savedMap = localStorage.getItem(TV_MAP_KEY);
+    if (savedMap === 'kr' || savedMap === 'world') tvUI.map = savedMap;
+  } catch (_) {}
   bindTravelEvents();
   renderTravelAll();
 }
