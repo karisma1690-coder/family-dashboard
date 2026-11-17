@@ -40,15 +40,15 @@ const JUKE_RECENT_MAX = 6;
 
 /* 여행 보드 — 권역 (지도 위 위치는 지도 너비·높이의 %예요) */
 const TRAVEL_REGIONS = [
-  { id: 'seoul',     name: '서울·경기', short: '서울',      emoji: '🏙️', x: 14, y: 17 },
-  { id: 'gangwon',   name: '강원',      short: '강원',      emoji: '⛰️', x: 64, y: 20 },
-  { id: 'chung',     name: '충청',      short: '충청',      emoji: '🌰', x: 35, y: 35 },
-  { id: 'gyeongbuk', name: '경주·대구', short: '경주·대구', emoji: '🏯', x: 60, y: 44 },
-  { id: 'ulsan',     name: '울산',      short: '울산',      emoji: '⚓', x: 73, y: 56 },
-  { id: 'busan',     name: '부산',      short: '부산',      emoji: '🌊', x: 67, y: 67 },
-  { id: 'jeolla',    name: '여수·전라', short: '전라',      emoji: '🍃', x: 26, y: 58 },
-  { id: 'jeju',      name: '제주',      short: '제주',      emoji: '🍊', x: 26, y: 87 },
-  { id: 'world',     name: '해외·기타', short: '해외',      emoji: '✈️', x: 92, y: 82 },
+  { id: 'seoul',     name: '서울·경기', short: '서울',      emoji: '🏙️', x: 25, y: 24 },
+  { id: 'gangwon',   name: '강원',      short: '강원',      emoji: '⛰️', x: 59, y: 26 },
+  { id: 'chung',     name: '충청',      short: '충청',      emoji: '🌰', x: 36, y: 41 },
+  { id: 'gyeongbuk', name: '경주·대구', short: '경주·대구', emoji: '🏯', x: 60, y: 50 },
+  { id: 'ulsan',     name: '울산',      short: '울산',      emoji: '⚓', x: 71, y: 60 },
+  { id: 'busan',     name: '부산',      short: '부산',      emoji: '🌊', x: 66, y: 68 },
+  { id: 'jeolla',    name: '여수·전라', short: '전라',      emoji: '🍃', x: 31, y: 62 },
+  { id: 'jeju',      name: '제주',      short: '제주',      emoji: '🍊', x: 29, y: 85 },
+  { id: 'world',     name: '해외·기타', short: '해외',      emoji: '✈️', x: 88, y: 81 },
 ];
 const TV_REGION_MAP = Object.fromEntries(TRAVEL_REGIONS.map(r => [r.id, r]));
 
