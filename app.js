@@ -1651,7 +1651,10 @@ function importJSON(file) {
       const parsed = JSON.parse(String(reader.result));
       if (!parsed || typeof parsed !== 'object' || !parsed.days) throw new Error('형식이 달라요');
       if (!confirm('지금 기록을 백업 파일로 바꿀까요? 되돌릴 수 없어요.')) return;
-      state = normalizeState(parsed);
+      const next = normalizeState(parsed);
+      // 여행 보드가 생기기 전 백업에는 travel이 없어요 — 불러올 때 지금 여행 기록은 지키기
+      if (!Array.isArray(parsed.travel)) next.travel = state.travel;
+      state = next;
       save();
       renderAll();
       closeModal('modalSettings');
