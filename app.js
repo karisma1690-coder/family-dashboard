@@ -906,6 +906,7 @@ function renderWeather(data) {
     b10.className = 'badge unknown';
     b25.className = 'badge unknown';
     tip.textContent = '📶 연결되면 다시 불러올게요';
+    renderBoardWeather(null);
     return;
   }
 
@@ -934,6 +935,9 @@ function renderWeather(data) {
   else if (data.temp != null && data.temp <= 3) tip.textContent = '🧥 아침은 많이 추워요';
   else if (data.temp != null && data.temp >= 26) tip.textContent = '🧊 시원한 물 자주 마셔요';
   else tip.textContent = '😊 오늘도 좋은 하루 보내요';
+
+  // 캘린더 보드 배너 날씨도 함께 갱신
+  renderBoardWeather(data);
 }
 
 async function fetchJson(url, ms = 7000) {
@@ -958,7 +962,8 @@ function readWeatherCache() {
 async function fetchWeather() {
   const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${ULSAN.lat}&longitude=${ULSAN.lon}`
     + '&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min'
-    + '&timezone=Asia%2FSeoul&forecast_days=1';
+    + '&hourly=temperature_2m,weather_code&forecast_days=2'
+    + '&timezone=Asia%2FSeoul';
   const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${ULSAN.lat}&longitude=${ULSAN.lon}`
     + '&current=pm10,pm2_5&timezone=Asia%2FSeoul';
 
@@ -978,6 +983,9 @@ async function fetchWeather() {
     data.temp = v.current.temperature_2m;
     if (v.daily && v.daily.temperature_2m_min) data.min = v.daily.temperature_2m_min[0];
     if (v.daily && v.daily.temperature_2m_max) data.max = v.daily.temperature_2m_max[0];
+    if (v.hourly && Array.isArray(v.hourly.time)) {
+      data.hourly = { time: v.hourly.time, temp: v.hourly.temperature_2m, code: v.hourly.weather_code };
+    }
     data.at = Date.now();
     persist();
     renderWeather(Object.assign({}, data, { cached: false }));
@@ -1373,6 +1381,7 @@ function renderAll() {
   renderStudy();
   renderTodo();
   renderChat();
+  renderBoardTicker();
 }
 
 /* ----------------------------- 고정 항목 관리 ----------------------------- */
@@ -2038,6 +2047,7 @@ function init() {
   renderJukeRecent();
   renderTimer();
   bindEvents();
+  initBoard();
   fetchWeather();
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
@@ -2054,4 +2064,785 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 if (document.readyState !== 'loading') {
   if (!window.__familyInit) { window.__familyInit = true; init(); }
+}
+
+/* ============================================================
+   태블릿 캘린더 보드 — 도트 월드 모드
+   오리지널 픽셀 크리터 + 도트 감성. 모든 기록은 이 기기의 localStorage에만 저장됩니다.
+   ============================================================ */
+const BOARD_KEY = 'family-dashboard.board.v1';
+const MODE_KEY = 'family-dashboard.mode.v1';
+
+const BOARD_MEMBERS = [
+  { id: 'dad',    name: '성영', color: '#3E7CA6', soft: '#E8F3FB' },
+  { id: 'mom',    name: '수나', color: '#C2705C', soft: '#FFF0EA' },
+  { id: 'yuns',   name: '윤슬', color: '#C9708E', soft: '#FFEAF1' },
+  { id: 'noeul',  name: '노을', color: '#C08B2B', soft: '#FFF3D9' },
+  { id: 'family', name: '가족', color: '#4C8C63', soft: '#E7F5E9' },
+];
+const BOARD_MEMBER_MAP = Object.fromEntries(BOARD_MEMBERS.map(m => [m.id, m]));
+
+function seedBoardEvents() {
+  const t = new Date();
+  const d = n => dateKey(addDays(t, n));
+  return [
+    { id: uid(), title: '도서관 책 읽기', member: 'family', start: d(0),  end: null,  kind: 'plan', time: '15:00' },
+    { id: uid(), title: '공원 산책',      member: 'noeul',  start: d(1),  end: null,  kind: 'plan', time: '10:30' },
+    { id: uid(), title: '마트 장보기',    member: 'mom',    start: d(2),  end: null,  kind: 'plan', time: '' },
+    { id: uid(), title: '친구랑 놀기',    member: 'yuns',   start: d(3),  end: null,  kind: 'plan', time: '' },
+    { id: uid(), title: '가족 영화 나들이', member: 'family', start: d(5), end: d(6),  kind: 'plan', time: '18:00' },
+    { id: uid(), title: '우리집 기념일',  member: 'family', start: d(12), end: null,  kind: 'bday', time: '' },
+  ];
+}
+
+function emptyBoard() {
+  return {
+    v: 1,
+    events: seedBoardEvents(),
+    shopping: [
+      { id: uid(), text: '우유', done: false },
+      { id: uid(), text: '사과', done: false },
+      { id: uid(), text: '달걀', done: false },
+    ],
+    tasks: [
+      { id: uid(), text: '방 청소하기', done: false },
+      { id: uid(), text: '책 꽂이 정리', done: false },
+    ],
+    birthdays: { yuns: '', noeul: '' },
+    ages: { yuns: '', noeul: '' },
+  };
+}
+
+let board = loadBoard();
+
+function loadBoard() {
+  try {
+    const raw = localStorage.getItem(BOARD_KEY);
+    if (!raw) return emptyBoard();
+    const o = JSON.parse(raw) || {};
+    const base = emptyBoard();
+    const listOk = a => Array.isArray(a);
+    return {
+      v: 1,
+      events: listOk(o.events)
+        ? o.events.filter(e => e && e.title && e.start && BOARD_MEMBER_MAP[e.member])
+          .map(e => ({ id: e.id || uid(), title: String(e.title).slice(0, 30), member: e.member, start: e.start, end: e.end || null, kind: e.kind === 'bday' ? 'bday' : 'plan', time: e.time || '' }))
+        : [],
+      shopping: listOk(o.shopping) ? o.shopping.filter(i => i && i.text).map(i => ({ id: i.id || uid(), text: String(i.text).slice(0, 30), done: !!i.done })) : base.shopping,
+      tasks: listOk(o.tasks) ? o.tasks.filter(i => i && i.text).map(i => ({ id: i.id || uid(), text: String(i.text).slice(0, 30), done: !!i.done })) : base.tasks,
+      birthdays: Object.assign({ yuns: '', noeul: '' }, o.birthdays || {}),
+      ages: Object.assign({ yuns: '', noeul: '' }, o.ages || {}),
+    };
+  } catch (err) {
+    return emptyBoard();
+  }
+}
+
+let boardSaveTimer = null;
+function saveBoard() {
+  clearTimeout(boardSaveTimer);
+  boardSaveTimer = setTimeout(() => {
+    try { localStorage.setItem(BOARD_KEY, JSON.stringify(board)); } catch (err) { /* 공간 부족은 조용히 넘어가요 */ }
+  }, 60);
+}
+
+/* ---------------- 도트 스프라이트 ---------------- */
+function pixSVG(rows, palette, unit = 5) {
+  const h = rows.length, w = rows[0].length;
+  let rects = '';
+  rows.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      const c = row[x];
+      if (c === '.' || !palette[c]) continue;
+      rects += `<rect x="${x * unit}" y="${y * unit}" width="${unit}" height="${unit}" fill="${palette[c]}"/>`;
+    }
+  });
+  return `<svg viewBox="0 0 ${w * unit} ${h * unit}" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true" style="width:100%;height:auto;display:block;image-rendering:pixelated">${rects}</svg>`;
+}
+
+const PICKLE_PALETTE = { a: '#6E8A1E', b: '#DCE84A', c: '#F2F78E', d: '#FFB3C0', e: '#3A3226' };
+const PICKLE_PIX = [
+  '....aaaa....',
+  '...abbbba...',
+  '..abccbbba..',
+  '.abbbbbbbba.',
+  '.abbbbbbbba.',
+  '.abebbbbeba.',
+  '.abbbbbbbba.',
+  '.abbbbbbbba.',
+  '.abdbbbdbba.',
+  '.abbbmbbbba.',
+  '..abbbbbba..',
+  '..abbbbbba..',
+  '...aabbaa...',
+];
+
+const RABBIT_PALETTE = { a: '#A65E78', b: '#FFB7C9', c: '#FFD9E3', d: '#FF97B0', e: '#3A3226', m: '#A6455E' };
+const RABBIT_PIX = [
+  '.aa......aa.',
+  'acba....abca',
+  'acba....abca',
+  'abba....abba',
+  '.aabbbbbbaa.',
+  'abbbbbbbbbba',
+  'abebbbbbebba',
+  'abbbbbbbbbba',
+  'abdbbbbbdbba',
+  'abbbbmmbbbba',
+  '.abbbbbbbba.',
+  '..aaaaaaaa..',
+];
+
+const CHICK_PALETTE = { a: '#B0722E', b: '#FFC98A', c: '#FFE3B8', d: '#FF9E6E', e: '#3A3226', m: '#E07B3A' };
+const CHICK_PIX = [
+  '.....aa.....',
+  '....acba....',
+  '...abbbba...',
+  '..abbbbbba..',
+  '..acbbbbba..',
+  '.abebbbbeba.',
+  '.abbbbbbbba.',
+  '.abbbmmbbba.',
+  '.abdbbbdbba.',
+  '.abbbbbbbba.',
+  '..abbbbbba..',
+  '..aa.aa.aa..',
+];
+
+/* ---------------- 도트 시계 (5x7 매트릭스) ---------------- */
+const PIX_DIGITS = {
+  '0': ['01110', '10001', '10011', '10101', '11001', '10001', '01110'],
+  '1': ['00100', '01100', '00100', '00100', '00100', '00100', '01110'],
+  '2': ['01110', '10001', '00001', '00110', '01000', '10000', '11111'],
+  '3': ['11110', '00001', '00001', '01110', '00001', '00001', '11110'],
+  '4': ['00010', '00110', '01010', '10010', '11111', '00010', '00010'],
+  '5': ['11111', '10000', '11110', '00001', '00001', '10001', '01110'],
+  '6': ['00110', '01000', '10000', '11110', '10001', '10001', '01110'],
+  '7': ['11111', '00001', '00010', '00100', '01000', '01000', '01000'],
+  '8': ['01110', '10001', '10001', '01110', '10001', '10001', '01110'],
+  '9': ['01110', '10001', '10001', '01111', '00001', '00010', '01100'],
+  ':': ['00', '01', '00', '00', '01', '00', '00'],
+};
+
+function pixClockSVG(text, unit = 9) {
+  const H = 7;
+  let rects = '';
+  let x = 0;
+  Array.from(text).forEach(ch => {
+    const glyph = PIX_DIGITS[ch];
+    if (!glyph) { x += 2; return; }
+    glyph.forEach((row, y) => {
+      for (let cx = 0; cx < row.length; cx++) {
+        if (row[cx] === '1') {
+          rects += `<rect x="${x + cx}" y="${y}" width="1" height="1" fill="#FFFFFF"/>`;
+        }
+      }
+    });
+    x += glyph[0].length + 1;
+  });
+  return `<svg viewBox="-0.5 -0.5 ${x + 1} ${H + 1}" xmlns="http://www.w3.org/2000/svg" style="height:1em;display:block" aria-hidden="true"><g fill="#FFFFFF" shape-rendering="crispEdges">${rects}</g></svg>`;
+}
+
+/* ---------------- 보드 상태/렌더 ---------------- */
+const bdUI = { week: 0, lastTicker: '', lastMusic: '' };
+
+function boardActive() {
+  return document.body.classList.contains('is-board');
+}
+
+function setMode(mode, persist = true) {
+  const isBoard = mode === 'board';
+  document.body.classList.toggle('is-board', isBoard);
+  const bv = $('#boardView');
+  const app = $('.app');
+  if (bv) bv.hidden = !isBoard;
+  if (app) app.hidden = isBoard;
+  if (persist) { try { localStorage.setItem(MODE_KEY, isBoard ? 'board' : 'record'); } catch (_) {} }
+  window.scrollTo(0, 0);
+  if (isBoard) renderBoardAll();
+}
+
+function restoreMode() {
+  let saved = 'record';
+  try { saved = localStorage.getItem(MODE_KEY) || 'record'; } catch (_) {}
+  if (saved === 'board') setMode('board', false);
+}
+
+function fmtHM(hm) {
+  const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(String(hm || ''));
+  if (!m) return '';
+  let h = Number(m[1]);
+  const ap = h < 12 ? '오전' : '오후';
+  h = h % 12 || 12;
+  return `${ap} ${h}:${m[2]}`;
+}
+
+function diffDays(a, b) {
+  return Math.round((parseKey(b) - parseKey(a)) / 86400000);
+}
+
+function eventsOn(key) {
+  const mmdd = key.slice(5);
+  return board.events
+    .filter(ev => {
+      if (ev.kind === 'bday') return ev.start.slice(5) === mmdd;
+      const end = ev.end || ev.start;
+      return ev.start <= key && key <= end;
+    })
+    .sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99') || a.title.localeCompare(b.title, 'ko'));
+}
+
+/* --- 배너: 시계 --- */
+function renderBoardClock() {
+  const now = new Date();
+  $('#bdDate').textContent = dateLabel(now);
+  $('#bdAmpm').textContent = now.getHours() < 12 ? '오전' : '오후';
+  const h = now.getHours() % 12 || 12;
+  const digits = $('#bdDigits');
+  if (digits) {
+    digits.style.fontSize = '56px';
+    digits.innerHTML = pixClockSVG(`${h}:${pad2(now.getMinutes())}`);
+    digits.setAttribute('aria-label', `현재 시각 ${dateLabel(now)} ${fmtHM(`${pad2(now.getHours())}:${pad2(now.getMinutes())}`)}`);
+  }
+}
+
+/* --- 배너: 날씨 --- */
+function boardSlots(data) {
+  if (!data || !data.hourly || !Array.isArray(data.hourly.time)) return null;
+  const want = [8, 12, 15, 20];
+  const out = [];
+  const nowH = new Date().getHours();
+  const days = [dateKey(), dateKey(addDays(new Date(), 1))];
+  for (const day of days) {
+    for (const h of want) {
+      if (day === days[0] && h <= nowH) continue; // 지난 시간대는 건너뛰고 뒤에서 채워요
+      const idx = data.hourly.time.indexOf(`${day}T${pad2(h)}:00`);
+      if (idx >= 0 && data.hourly.temp && data.hourly.temp[idx] != null) {
+        const info = data.hourly.code != null && WMO[data.hourly.code[idx]] ? WMO[data.hourly.code[idx]] : ['🌤️', ''];
+        out.push({ label: `${h}시`, temp: Math.round(data.hourly.temp[idx]), emoji: info[0] });
+      }
+      if (out.length >= 4) break;
+    }
+    if (out.length >= 4) break;
+  }
+  return out.length ? out : null;
+}
+
+function renderBoardWeather(data) {
+  const temp = $('#bdWTemp'), desc = $('#bdWDesc'), emoji = $('#bdWEmoji');
+  const air = $('#bdWAir'), tip = $('#bdWTip'), slots = $('#bdWSlots');
+  if (!temp || !slots) return;
+  if (!data) {
+    temp.textContent = '--°';
+    desc.textContent = '날씨를 불러오지 못했어요';
+    emoji.textContent = '🌫️';
+    air.textContent = '미세먼지 —';
+    air.className = 'badge unknown';
+    tip.textContent = '📶 연결되면 다시 불러올게요';
+  } else {
+    const info = data.code != null && WMO[data.code] ? WMO[data.code] : ['🌤️', '날씨 정보 없음'];
+    emoji.textContent = info[0];
+    temp.textContent = (data.temp != null ? Math.round(data.temp) : '--') + '°';
+    desc.textContent = info[1] + (data.cached ? ' · 저장된 값' : '');
+    const g10 = gradePM(data.pm10, 'pm10');
+    air.textContent = `미세먼지 ${g10.label}`;
+    air.className = 'badge ' + (g10.cls || '');
+  }
+  const s = boardSlots(data);
+  slots.innerHTML = (s || [
+    { label: '8시', temp: null, emoji: '🕰️' },
+    { label: '12시', temp: null, emoji: '🕰️' },
+    { label: '15시', temp: null, emoji: '🕰️' },
+    { label: '20시', temp: null, emoji: '🕰️' },
+  ]).map(it => `
+    <span class="bd-w-slot">
+      <b>${esc(it.label)}</b>
+      <span aria-hidden="true">${it.emoji}</span>
+      <strong>${it.temp != null ? it.temp + '°' : '-°'}</strong>
+    </span>`).join('');
+}
+
+/* --- 왼쪽: 3주 캘린더 --- */
+function boardWeekStart() {
+  return addDays(startOfWeek(new Date()), bdUI.week * 7);
+}
+
+function renderBoardCalendar() {
+  const start = boardWeekStart();
+  const end = addDays(start, 20);
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  $('#bdCalTitleText').textContent = sameMonth
+    ? `${start.getFullYear()}년 ${start.getMonth() + 1}월`
+    : `${start.getFullYear()}년 ${start.getMonth() + 1}월 - ${end.getFullYear() !== start.getFullYear() ? end.getFullYear() + '년 ' : ''}${end.getMonth() + 1}월`;
+
+  $('#bdLegend').innerHTML = BOARD_MEMBERS.map(m =>
+    `<span class="bd-lg-item"><i style="background:${m.color}"></i>${m.name}</span>`).join('');
+
+  const todayK = dateKey();
+  let html = '';
+  for (let i = 0; i < 21; i++) {
+    const d = addDays(start, i);
+    const key = dateKey(d);
+    const other = d.getMonth() !== start.getMonth();
+    const evs = eventsOn(key);
+    const shown = evs.slice(0, 3);
+    const more = evs.length - shown.length;
+    const cls = ['bd-cell', key === todayK ? 'is-today' : '', other ? 'other-month' : '', d.getDay() === 0 ? 'sun' : ''].join(' ');
+    html += `
+      <button class="${cls}" type="button" data-date="${key}" aria-label="${d.getMonth() + 1}월 ${d.getDate()}일 일정 ${evs.length}개 — 눌러서 추가·수정">
+        <span class="bd-daynum">${d.getDate()}</span>
+        ${shown.map(ev => {
+          const mm = BOARD_MEMBER_MAP[ev.member] || BOARD_MEMBER_MAP.family;
+          return `<span class="bd-ev ${ev.kind === 'bday' ? 'is-bday' : ''}" style="--c:${mm.color};--s:${mm.soft}">${ev.kind === 'bday' ? '🎂 ' : ''}${esc(ev.title)}</span>`;
+        }).join('')}
+        ${more > 0 ? `<span class="bd-ev-more">+${more}개 더</span>` : ''}
+      </button>`;
+  }
+  $('#bdCalGrid').innerHTML = html;
+}
+
+/* --- 오늘 카드 --- */
+function renderBoardToday() {
+  const now = new Date();
+  const todayK = dateKey();
+  $('#bdTodayDate').textContent = `${now.getMonth() + 1}월 ${now.getDate()}일 ${WEEK_LABEL[now.getDay()]}요일`;
+
+  const todays = eventsOn(todayK);
+  $('#bdTodayList').innerHTML = todays.length
+    ? todays.map(ev => {
+        const mm = BOARD_MEMBER_MAP[ev.member] || BOARD_MEMBER_MAP.family;
+        return `<div class="bd-today-row" data-event-id="${ev.id}" style="--c:${mm.color}">
+          <span class="bd-today-time">${ev.time ? esc(fmtHM(ev.time)) : '하루 종일'}</span>
+          <span class="bd-today-title">${ev.kind === 'bday' ? '🎂 ' : ''}${esc(ev.title)}</span>
+        </div>`;
+      }).join('')
+    : `<p class="bd-empty">오늘 일정은 없어요 — 달력의 날짜를 눌러 추가해요</p>`;
+
+  // 다음: 오늘 이후 가장 가까운 일정
+  let next = null;
+  for (let i = 1; i <= 60 && !next; i++) {
+    const k = dateKey(addDays(now, i));
+    const evs = eventsOn(k);
+    if (evs.length) next = { ev: evs[0], key: k };
+  }
+  $('#bdNextRow').innerHTML = next
+    ? `<span class="bd-next-label">다음</span><span class="bd-next-text">${next.key.slice(5).replace('-', '/')}(${WEEK_LABEL[parseKey(next.key).getDay()]}) ${esc(next.ev.title)}</span>`
+    : `<span class="bd-next-label">다음</span><span class="bd-next-text bd-muted">예정된 일정이 없어요</span>`;
+
+  // 내일: 내일 일정 1개 미리보기
+  const tmrK = dateKey(addDays(now, 1));
+  const tmr = eventsOn(tmrK);
+  $('#bdTomorrowRow').innerHTML = tmr.length
+    ? `<span class="bd-next-label">내일</span><span class="bd-next-text">${tmr[0].time ? esc(fmtHM(tmr[0].time)) + ' ' : ''}${esc(tmr[0].title)}</span>`
+    : `<span class="bd-next-label">내일</span><span class="bd-next-text bd-muted">내일 일정도 비어 있어요</span>`;
+}
+
+/* --- 장보기 & 할 일 --- */
+function renderBoardList(listEl, countEl, items, emptyText) {
+  listEl.innerHTML = items.length
+    ? items.map(it => `
+      <div class="bd-check ${it.done ? 'is-done' : ''}" data-id="${it.id}">
+        <button class="bd-check-box ${it.done ? 'on' : ''}" type="button" data-act="bd-check" aria-pressed="${it.done}" aria-label="${esc(it.text)} ${it.done ? '완료 취소' : '완료'}">${it.done ? '✓' : ''}</button>
+        <span class="bd-check-text">${esc(it.text)}</span>
+        <button class="mini-btn danger" type="button" data-act="bd-del" aria-label="${esc(it.text)} 삭제">✕</button>
+      </div>`).join('')
+    : `<p class="bd-empty">${emptyText}</p>`;
+  const done = items.filter(i => i.done).length;
+  countEl.textContent = items.length ? `${done}/${items.length}` : '';
+}
+
+function renderBoardLists() {
+  renderBoardList($('#bdShopList'), $('#bdShopCount'), board.shopping, '필요한 것을 추가해요');
+  renderBoardList($('#bdTaskList'), $('#bdTaskCount'), board.tasks, '오늘 할 일을 추가해요');
+}
+
+function addBoardItem(kind) {
+  const input = kind === 'shop' ? $('#bdShopInput') : $('#bdTaskInput');
+  const text = input.value.trim();
+  if (!text) { input.focus(); return; }
+  const list = kind === 'shop' ? board.shopping : board.tasks;
+  list.push({ id: uid(), text, done: false });
+  input.value = '';
+  saveBoard();
+  renderBoardLists();
+}
+
+function toggleBoardItem(kind, id) {
+  const list = kind === 'shop' ? board.shopping : board.tasks;
+  const it = list.find(i => i.id === id);
+  if (!it) return;
+  it.done = !it.done;
+  saveBoard();
+  renderBoardLists();
+}
+
+function deleteBoardItem(kind, id) {
+  if (kind === 'shop') board.shopping = board.shopping.filter(i => i.id !== id);
+  else board.tasks = board.tasks.filter(i => i.id !== id);
+  saveBoard();
+  renderBoardLists();
+}
+
+/* --- 아이 레벨 · D-day 카드 --- */
+function lifetimeDone(mid) {
+  let n = 0;
+  for (const k in state.days) {
+    const d = state.days[k];
+    if (!d) continue;
+    n += ((d.study && d.study[mid]) || []).filter(i => i.done).length;
+    n += ((d.todo && d.todo[mid]) || []).filter(i => i.done).length;
+  }
+  return n;
+}
+
+function kidBdayInfo(mid) {
+  const b = board.birthdays[mid];
+  if (!b || !/^\d{2}-\d{2}$/.test(b)) return null;
+  const y = new Date().getFullYear();
+  let target = `${y}-${b}`;
+  if (target < dateKey()) target = `${y + 1}-${b}`;
+  return { mmdd: b, dday: diffDays(dateKey(), target) };
+}
+
+function renderBoardKids() {
+  const buddies = { yuns: [RABBIT_PIX, RABBIT_PALETTE], noeul: [CHICK_PIX, CHICK_PALETTE] };
+  CHILDREN.forEach(kid => {
+    const card = $(`.bd-kid[data-kid="${kid.id}"]`);
+    if (!card) return;
+    const total = lifetimeDone(kid.id);
+    const lv = 1 + Math.floor(total / 10);
+    const pct = (total % 10) * 10;
+    const bday = kidBdayInfo(kid.id);
+    const age = board.ages[kid.id];
+    const [pix, pal] = buddies[kid.id] || buddies.yuns;
+    card.innerHTML = `
+      <span class="bd-kid-buddy" aria-hidden="true">${pixSVG(pix, pal)}</span>
+      <div class="bd-kid-body">
+        <div class="bd-kid-head">
+          <strong>${kid.name} <span class="bd-kid-lv">Lv.${lv}</span></strong>
+          <span class="bd-kid-stars">★ ${total}개</span>
+        </div>
+        <div class="bd-kid-bar" role="img" aria-label="다음 레벨까지 ${10 - (total % 10)}개">
+          <div class="bd-kid-fill" style="width:${pct}%"></div>
+        </div>
+        ${bday
+          ? `<span class="bd-kid-dday">🎂 ${bday.mmdd}${age ? ' · ' + esc(age) + '살' : ''} · 생일까지 D-${bday.dday}</span>`
+          : `<span class="bd-kid-dday unset">🎂 생일을 알려주세요 — 카드를 눌러 입력</span>`}
+      </div>
+      <span class="bd-kid-gear" aria-hidden="true">⚙️</span>`;
+  });
+}
+
+/* --- 다가오는 날 --- */
+function renderBoardUpcoming() {
+  const todayK = dateKey();
+  const out = [];
+  board.events.forEach(ev => {
+    if (ev.kind !== 'bday') return; // '다가오는 날'은 생일·기념일 전용 — 일반 일정은 오늘/다음/내일 카드에 나와요
+    const mmdd = ev.start.slice(5);
+    const y = new Date().getFullYear();
+    let target = `${y}-${mmdd}`;
+    if (target < todayK) target = `${y + 1}-${mmdd}`;
+    out.push({ d: diffDays(todayK, target), date: target, title: ev.title, member: ev.member, bday: true });
+  });
+  CHILDREN.forEach(kid => {
+    const b = board.birthdays[kid.id];
+    if (b && /^\d{2}-\d{2}$/.test(b)) {
+      const y = new Date().getFullYear();
+      let target = `${y}-${b}`;
+      if (target < todayK) target = `${y + 1}-${b}`;
+      out.push({ d: diffDays(todayK, target), date: target, title: `${kid.name} 생일`, member: kid.id, bday: true });
+    }
+  });
+  out.sort((a, b) => a.d - b.d || a.date.localeCompare(b.date));
+  $('#bdUpList').innerHTML = out.length
+    ? out.slice(0, 6).map(it => {
+        const mm = BOARD_MEMBER_MAP[it.member] || BOARD_MEMBER_MAP.family;
+        return `<div class="bd-up-row" style="--c:${mm.color};--s:${mm.soft}">
+          <span class="bd-up-dday ${it.d === 0 ? 'today' : ''}">${it.d === 0 ? 'D-day' : 'D-' + it.d}</span>
+          <span class="bd-up-title">${it.bday ? '🎂 ' : ''}${esc(it.title)}</span>
+          <span class="bd-up-date">${it.date.slice(5).replace('-', '/')}</span>
+        </div>`;
+      }).join('')
+    : `<p class="bd-empty">등록된 생일·기념일이 없어요 — 달력에서 🎂 일정을 추가해요</p>`;
+}
+
+/* --- 하단 바: 요약 티커 + 미니 음악 --- */
+function renderBoardTicker() {
+  const el = $('#bdTicker');
+  if (!el) return;
+  const kidsTxt = CHILDREN.map(m => `${m.name} ${weeklyStats(m.id).pct}%`).join(' · ');
+  const day = getDay(dateKey());
+  const ms = day.mission ? MISSIONS[day.mission.idx] : null;
+  const lastChat = state.chat.length ? state.chat[state.chat.length - 1] : null;
+  const sender = lastChat ? (MEMBER_MAP[lastChat.member] || MEMBER_MAP.yuns).name : '';
+  const text = [
+    `🎯 주간 달성(90% 목표): ${kidsTxt}`,
+    ms ? `🎲 미션: ${ms.text}` : '🎲 미션: 아직 안 뽑았어요',
+    lastChat ? `💌 한마디: “${sender} · ${String(lastChat.text).slice(0, 22)}”` : '💌 아직 한마디가 없어요',
+  ];
+  const joined = text.join('|');
+  if (joined !== bdUI.lastTicker) {
+    bdUI.lastTicker = joined;
+    el.innerHTML = text.map(t => `<span>${esc(t)}</span>`).join('');
+  }
+}
+
+function renderBoardMusic() {
+  const el = $('#bdMusicTitle');
+  if (!el) return;
+  const t = jukeNow ? `▶ ${jukeNow.label}` : '재생 준비';
+  if (t !== bdUI.lastMusic) {
+    bdUI.lastMusic = t;
+    el.textContent = t;
+  }
+}
+
+function renderBoardAll() {
+  if (!boardActive()) return;
+  renderBoardClock();
+  renderBoardCalendar();
+  renderBoardToday();
+  renderBoardLists();
+  renderBoardKids();
+  renderBoardUpcoming();
+  renderBoardTicker();
+  renderBoardMusic();
+}
+
+/* --- 일정 모달 --- */
+const bdEventEditor = { id: null };
+
+function openEventModal(id = null, presetDate = null) {
+  bdEventEditor.id = id;
+  const ev = id ? board.events.find(e => e.id === id) : null;
+  $('#bdEventTitle').textContent = id ? '✏️ 일정 수정' : '🗓️ 일정 추가';
+  $('#bdEventText').value = ev ? ev.title : '';
+  $('#bdEventMember').value = ev ? ev.member : 'family';
+  $('#bdEventStart').value = ev ? ev.start : (presetDate || dateKey());
+  $('#bdEventEnd').value = ev && ev.end ? ev.end : '';
+  $('#bdEventTime').value = ev ? (ev.time || '') : '';
+  $('#bdEventKind').value = ev ? ev.kind : 'plan';
+  $('#bdEventDelete').hidden = !id;
+  openModal('modalEvent');
+  setTimeout(() => $('#bdEventText').focus({ preventScroll: true }), 80);
+}
+
+function saveEventModal() {
+  const title = $('#bdEventText').value.trim();
+  let start = $('#bdEventStart').value;
+  const end = $('#bdEventEnd').value || null;
+  if (!title) { toast('내용을 적어 주세요'); $('#bdEventText').focus(); return; }
+  if (!start) { toast('시작 날짜를 골라 주세요'); return; }
+  if (end && end < start) { const t = start; start = end; $('#bdEventStart').value = start; $('#bdEventEnd').value = t; }
+  const data = {
+    title: title.slice(0, 30),
+    member: $('#bdEventMember').value,
+    start,
+    end: end || null,
+    kind: $('#bdEventKind').value === 'bday' ? 'bday' : 'plan',
+    time: $('#bdEventTime').value || '',
+  };
+  if (bdEventEditor.id) {
+    const ev = board.events.find(e => e.id === bdEventEditor.id);
+    if (ev) Object.assign(ev, data);
+  } else {
+    board.events.push(Object.assign({ id: uid() }, data));
+  }
+  saveBoard();
+  closeModal('modalEvent');
+  renderBoardCalendar();
+  renderBoardToday();
+  renderBoardUpcoming();
+  toast('일정을 저장했어요 🗓️');
+}
+
+function deleteEventModal() {
+  if (!bdEventEditor.id) return;
+  if (!confirm('이 일정을 지울까요?')) return;
+  board.events = board.events.filter(e => e.id !== bdEventEditor.id);
+  saveBoard();
+  closeModal('modalEvent');
+  renderBoardCalendar();
+  renderBoardToday();
+  renderBoardUpcoming();
+  toast('일정을 지웠어요');
+}
+
+function exportBoardEvents() {
+  const blob = new Blob([JSON.stringify({ app: 'family-dashboard', kind: 'calendar', events: board.events }, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `가족캘린더-${dateKey()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  toast('일정 백업을 내려받았어요');
+}
+
+function importBoardEvents(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(String(reader.result));
+      const evs = Array.isArray(parsed) ? parsed : parsed && parsed.events;
+      if (!Array.isArray(evs)) throw new Error('형식이 달라요');
+      if (!confirm(`일정 ${evs.length}개를 불러올까요? 지금 일정을 대체해요.`)) return;
+      board.events = evs
+        .filter(e => e && e.title && e.start)
+        .map(e => ({ id: e.id || uid(), title: String(e.title).slice(0, 30), member: BOARD_MEMBER_MAP[e.member] ? e.member : 'family', start: e.start, end: e.end || null, kind: e.kind === 'bday' ? 'bday' : 'plan', time: e.time || '' }));
+      saveBoard();
+      renderBoardCalendar();
+      renderBoardToday();
+      renderBoardUpcoming();
+      toast('일정을 불러왔어요');
+    } catch (err) {
+      toast('이 파일은 불러올 수 없어요');
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* --- 생일 모달 --- */
+const bdBdayEditor = { kid: 'yuns' };
+
+function openBirthdayModal(kidId) {
+  const kid = CHILDREN.find(c => c.id === kidId);
+  if (!kid) return;
+  bdBdayEditor.kid = kidId;
+  $('#bdBdayWho').textContent = `${kid.name}${iGa(kid.name)} 생일과 나이를 알려주세요 — 카드와 '다가오는 날'에 D-day로 표시돼요`;
+  $('#bdBdayDate').value = board.birthdays[kidId] || '';
+  $('#bdBdayAge').value = board.ages[kidId] || '';
+  openModal('modalBirthday');
+  setTimeout(() => $('#bdBdayDate').focus({ preventScroll: true }), 80);
+}
+
+function saveBirthdayModal() {
+  const v = $('#bdBdayDate').value.trim();
+  if (v && !/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(v)) {
+    toast('월-일 형식으로 적어 주세요 (예: 03-15)');
+    $('#bdBdayDate').focus();
+    return;
+  }
+  board.birthdays[bdBdayEditor.kid] = v || '';
+  const age = Number($('#bdBdayAge').value);
+  board.ages[bdBdayEditor.kid] = age > 0 ? String(Math.min(19, Math.floor(age))) : '';
+  saveBoard();
+  closeModal('modalBirthday');
+  renderBoardKids();
+  renderBoardUpcoming();
+  toast('생일을 저장했어요 🎂');
+}
+
+/* --- 이벤트 연결 --- */
+function focusRecordSection(sel, kid) {
+  setMode('record');
+  if (kid) {
+    ui.stampChild = kid;
+    ui.calChild = kid;
+    renderStamp();
+  }
+  setTimeout(() => {
+    const target = document.querySelector(sel);
+    if (!target) return;
+    target.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+    target.classList.add('bd-flash');
+    setTimeout(() => target.classList.remove('bd-flash'), 1600);
+  }, 80);
+}
+
+function bindBoardEvents() {
+  $('#btnBoardToggle').addEventListener('click', () => setMode('board'));
+  $('#btnBoardBack').addEventListener('click', () => setMode('record'));
+
+  $$('.bd-tab[data-btab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.btab;
+      if (t === 'home') setMode('record');
+      else if (t === 'yuns') focusRecordSection('.study-block[data-member="yuns"]', 'yuns');
+      else if (t === 'noeul') focusRecordSection('.study-block[data-member="noeul"]', 'noeul');
+      else if (t === 'stamp') focusRecordSection('.card-stamp', null);
+      else if (t === 'music') focusRecordSection('.card-juke', null);
+    });
+  });
+
+  $('#bdMusicOpen').addEventListener('click', () => focusRecordSection('.card-juke', null));
+
+  $('#bdCalPrev').addEventListener('click', () => { bdUI.week -= 1; renderBoardCalendar(); });
+  $('#bdCalNext').addEventListener('click', () => { bdUI.week += 1; renderBoardCalendar(); });
+  $('#bdCalExport').addEventListener('click', exportBoardEvents);
+  $('#bdCalImport').addEventListener('click', () => $('#bdCalImportFile').click());
+  $('#bdCalImportFile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (f) importBoardEvents(f);
+    e.target.value = '';
+  });
+
+  $('#bdCalGrid').addEventListener('click', e => {
+    const cell = e.target.closest('.bd-cell');
+    if (cell) openEventModal(null, cell.dataset.date);
+    const bar = e.target.closest('.bd-ev');
+    if (bar) {
+      const cell2 = bar.closest('.bd-cell');
+      const evs = eventsOn(cell2 ? cell2.dataset.date : '');
+      if (evs.length === 1) openEventModal(evs[0].id);
+      else if (evs.length > 1) {
+        // 여러 개면 가장 첫 번째(시간순) 일정부터 열어요 — 날짜 클릭으로도 수정 가능
+        const title = bar.textContent.replace('🎂 ', '').trim();
+        const hit = evs.find(v => v.title === title) || evs[0];
+        openEventModal(hit.id);
+      }
+    }
+  });
+
+  $('#bdEventSave').addEventListener('click', saveEventModal);
+  $('#bdEventDelete').addEventListener('click', deleteEventModal);
+  $('#bdEventText').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); saveEventModal(); }
+  });
+
+  $('#bdShopAdd').addEventListener('click', () => addBoardItem('shop'));
+  $('#bdTaskAdd').addEventListener('click', () => addBoardItem('task'));
+  $('#bdShopInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addBoardItem('shop'); } });
+  $('#bdTaskInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addBoardItem('task'); } });
+  $('#bdShopList').addEventListener('click', e => boardListClick('shop', e));
+  $('#bdTaskList').addEventListener('click', e => boardListClick('task', e));
+
+  $$('.bd-kid').forEach(card => {
+    card.addEventListener('click', () => openBirthdayModal(card.dataset.kid));
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openBirthdayModal(card.dataset.kid); }
+    });
+  });
+  $('#bdBdaySave').addEventListener('click', saveBirthdayModal);
+}
+
+function boardListClick(kind, e) {
+  const row = e.target.closest('.bd-check');
+  if (!row) return;
+  const act = e.target.closest('[data-act]');
+  if (!act) return;
+  if (act.dataset.act === 'bd-check') toggleBoardItem(kind, row.dataset.id);
+  else if (act.dataset.act === 'bd-del') deleteBoardItem(kind, row.dataset.id);
+}
+
+/* --- 시작 --- */
+function initBoard() {
+  $('#bdPickle').innerHTML = pixSVG(PICKLE_PIX, PICKLE_PALETTE);
+  bindBoardEvents();
+  restoreMode();
+  renderBoardWeather(readWeatherCache());
+  renderBoardTicker();
+  renderBoardMusic();
+  if (boardActive()) renderBoardAll();
+
+  // 시계 1초 틱 — 보드가 열려 있을 때는 하단 티커·음악 표시도 함께 새로 고침
+  setInterval(() => {
+    if (!boardActive()) return;
+    renderBoardClock();
+    renderBoardTicker();
+    renderBoardMusic();
+  }, 1000);
 }

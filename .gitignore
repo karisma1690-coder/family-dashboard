@@ -1,0 +1,9 @@
+# 개발용 파일 (사이트 배포에는 필요 없음)
+preview_*.png
+shots/
+test_*.py
+final_shots.py
+make_icons.py
+deploy.sh
+.testlibs/
+__pycache__/
