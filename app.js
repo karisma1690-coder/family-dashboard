@@ -1713,6 +1713,7 @@ function importJSON(file) {
       // 여행 보드가 생기기 전 백업에는 travel이 없어요 — 불러올 때 지금 여행 기록은 지키기
       if (!Array.isArray(parsed.travel)) next.travel = state.travel;
       state = next;
+      relinkTravelEvents();
       save();
       renderAll();
       closeModal('modalSettings');
@@ -2804,6 +2805,7 @@ function importBoardEvents(file) {
         .map(e => ({ id: e.id || uid(), title: String(e.title).slice(0, 30), member: BOARD_MEMBER_MAP[e.member] ? e.member : 'family', start: e.start, end: e.end || null, kind: e.kind === 'bday' ? 'bday' : 'plan', time: e.time || '' }));
       // 백업 파일에 여행 보드가 들어 있으면 함께 불러와요
       if (Array.isArray(parsed.travel)) state.travel = normalizeTravel(parsed.travel);
+      relinkTravelEvents();
       save();
       saveBoard();
       renderBoardCalendar();
@@ -3388,8 +3390,7 @@ function removeTravelEvent(item) {
   item.eventId = '';
 }
 
-function syncTravelEvent(item) {
-  if (!item) return;
+function syncTravelEvent(item) {  if (!item) return;
   const want = !!item.calSync && !!item.start;
   const ev = item.eventId ? board.events.find(e => e.id === item.eventId) : null;
   if (!want) {
@@ -3411,6 +3412,19 @@ function syncTravelEvent(item) {
     board.events.push(fresh);
     item.eventId = fresh.id;
   }
+}
+
+/** 백업을 불러온 뒤 여행 기록과 캘린더 일정을 제목·날짜로 다시 이어 줘요 */
+function relinkTravelEvents() {
+  if (!state || !Array.isArray(state.travel) || !board) return;
+  state.travel.forEach(t => {
+    if (!t.calSync || !t.start) { t.eventId = ''; return; }
+    const title = `✈️ ${t.name} 여행`.slice(0, 30);
+    const hit = (t.eventId ? board.events.find(e => e.id === t.eventId) : null)
+      || board.events.find(e => e.title === title && e.start === t.start)
+      || board.events.find(e => e.title === title);
+    t.eventId = hit ? hit.id : '';
+  });
 }
 
 function saveTravelModal() {
