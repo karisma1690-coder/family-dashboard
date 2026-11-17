@@ -1345,14 +1345,15 @@ body.is-travel{background:#EAF6FF}
   .tv-map-switch{width:100%;justify-content:flex-end}
   .tv-map.is-world .tv-pin-dot{width:22px;height:22px;font-size:11px}
   .tv-map.is-world .tv-pin-label{font-size:8px;padding:0 3px}
+  .tv-map.is-world .tv-pin-count{font-size:8.5px;min-width:13px;height:13px;top:-5px;right:-6px;border-width:1px}
   .tv-item-range,.tv-item-cal{margin-left:0;margin-right:4px}
   .tv-field-2col{grid-template-columns:1fr}
   .tv-thumb{width:58px;height:58px}
   .tv-photo-item{width:64px;height:64px}
 }
 @media (max-width:400px){
-  .tv-map.is-world .tv-pin-dot{width:20px;height:20px;font-size:10.5px}
-  .tv-map.is-world .tv-pin-label{font-size:7.5px}
+  .tv-map.is-world .tv-pin-dot{width:20px;height:20px;font-size:10px}
+  .tv-map.is-world .tv-pin-label{font-size:7.5px;padding:0 2px}
 }
 
 /* hidden 속성이 버튼 display 규칙에 밀리지 않게 */

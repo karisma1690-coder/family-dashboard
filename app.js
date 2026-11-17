@@ -55,7 +55,7 @@ const KR_REGIONS = [
    'kr'은 국내 권역 전체를 한 핀으로 묶은 자리표시예요. */
 const WORLD_REGIONS = [
   { id: 'kr',       name: '한국',        short: '한국',      emoji: '🗺️', map: 'world', x: 85.4, y: 29.4, labelSide: 'left' },
-  { id: 'eastasia', name: '일본·동아시아', short: '동아시아',  emoji: '🗾', map: 'world', x: 91.6, y: 29.8 },
+  { id: 'eastasia', name: '일본·동아시아', short: '동아시아',  emoji: '🗾', map: 'world', x: 91.6, y: 33.4 },
   { id: 'seasia',   name: '동남아',      short: '동남아',    emoji: '🌴', map: 'world', x: 80.6, y: 49.8 },
   { id: 'europe',   name: '유럽',        short: '유럽',      emoji: '🏰', map: 'world', x: 54.2, y: 20.7 },
   { id: 'namerica', name: '북미',        short: '북미',      emoji: '🗽', map: 'world', x: 22.2, y: 24.0 },
