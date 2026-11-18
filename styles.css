@@ -1358,3 +1358,361 @@ body.is-travel{background:#EAF6FF}
 
 /* hidden 속성이 버튼 display 규칙에 밀리지 않게 */
 .modal-foot .btn[hidden]{display:none !important}
+
+/* ============================================================
+   🧒 아이들 보드 — 아이들 전용 도트 월드
+   ============================================================ */
+body.is-kids{background:#F3FBEF}
+.header-actions{flex-wrap:wrap;justify-content:flex-end}
+.btn-board-open-sm{padding:9px 11px}
+
+.kids{position:relative;z-index:2;min-height:100vh}
+body.is-kids .bg-blobs{background:#F3FBEF}
+.kb-inner{max-width:1320px;margin:0 auto;padding:14px 16px calc(22px + var(--safe-b))}
+
+/* ---- 상단 컨트롤 바 ---- */
+.kb-bar{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;
+  background:linear-gradient(135deg,#FFFDF2 0%,#F3FBE7 58%,#E8F6D6 100%);
+  border:1px solid #E4F0D2;border-radius:24px;padding:12px 16px;
+  box-shadow:var(--shadow-soft);
+}
+.kb-brand{display:flex;align-items:center;gap:9px}
+.kb-brand-emoji{font-size:26px;line-height:1}
+.kb-brand-title{font-size:19px;font-weight:900;letter-spacing:-.4px;color:#3F5138}
+.kb-brand-sub{font-size:11.5px;color:#7D8B72;font-weight:700}
+.kb-clock{display:flex;align-items:center;gap:8px}
+.kb-clock-chip{
+  display:inline-flex;align-items:center;gap:7px;
+  background:#3F6B4A;border-radius:14px;padding:5px 11px;
+  box-shadow:0 3px 0 rgba(63,107,74,.28);
+}
+.kb-clock-ampm{color:#D9F0C9;font-size:11px;font-weight:800}
+.kb-clock-digits{color:#fff;font-size:22px;line-height:1}
+.kb-date{font-size:12.5px;font-weight:800;color:#5E7355;white-space:nowrap}
+.kb-tools{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.kb-tool{
+  border:2px solid #CFE3B8;background:#FFFDF2;border-radius:11px;
+  padding:6px 10px;font-size:12px;font-weight:800;color:#4F6B45;
+  box-shadow:0 2px 0 rgba(120,150,100,.16);line-height:1.2;
+}
+.kb-tool:active{transform:translateY(1px)}
+.kb-tool.is-on{background:#DDF3C8;border-color:#A9D584;color:#3B6031}
+.kb-tool-ghost{background:#fff;border-color:#EADFC8;color:#7A6E60}
+.kb-periods{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.kb-periods-label{font-size:11px;font-weight:800;color:#93A487}
+.kb-period{
+  border:1px solid #E1EBD5;background:#fff;border-radius:999px;
+  padding:5px 11px;font-size:11.5px;font-weight:800;color:#7C8C72;
+}
+.kb-period.is-active{background:#FFF0C9;border-color:#F0D68F;color:#8A6A24}
+.kb-nav{display:flex;gap:6px;flex-wrap:wrap}
+.kb-nav-btn{
+  border:1px solid #E1EBD5;background:#fff;border-radius:11px;
+  padding:6px 10px;font-size:11.5px;font-weight:800;color:#68775F;
+}
+.kb-nav-btn:active{transform:translateY(1px)}
+
+/* ---- 본문 ---- */
+.kb-main{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;align-items:start}
+.kb-kidcol{display:flex;flex-direction:column;gap:12px;min-width:0}
+
+/* 프로필 카드 */
+.kb-profile{
+  display:flex;align-items:center;gap:11px;
+  background:linear-gradient(150deg,#fff 0%,var(--kid-soft,#F7FCF1) 100%);
+  border:2px solid var(--kid,#E4F0D2);border-radius:22px;
+  padding:12px 14px;box-shadow:var(--shadow-soft);
+}
+.kb-avatar{
+  width:62px;height:70px;flex-shrink:0;padding:3px;display:grid;place-items:center;
+  background:#fff;border:2px solid var(--kid,#EBD9DF);border-radius:18px;
+}
+.kb-avatar svg{width:100%;height:auto;max-height:100%;display:block;image-rendering:pixelated}
+.kb-profile-main{min-width:0;flex:1}
+.kb-name-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.kb-name{font-size:19px;font-weight:900;letter-spacing:-.3px;color:#3F5138;line-height:1.1}
+.kb-nick{
+  font-size:11px;font-weight:800;color:var(--kid,#C08B2B);
+  background:#fff;border:1px solid var(--kid-soft,#F0E3C8);border-radius:999px;padding:1px 8px;
+}
+.kb-goal{
+  font-size:11.5px;font-weight:700;color:#86956F;margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.kb-badges{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+.kb-badge{
+  display:inline-flex;align-items:center;gap:3px;
+  background:#F4F9EE;border:1px solid #E4F0D6;border-radius:999px;
+  padding:2px 9px;font-size:11.5px;font-weight:800;color:#5E7355;
+}
+.kb-badge.kb-stars{background:#FFF6DC;border-color:#F2E1AE;color:#A9762B}
+.kb-profile-actions{display:flex;gap:7px;flex-shrink:0;position:relative}
+.kb-piggy{
+  display:flex;flex-direction:column;align-items:center;gap:1px;min-width:84px;
+  background:#FFF6E9;border:2px solid #F6E3C6;border-radius:14px;padding:6px 10px;
+}
+.kb-piggy-emoji{font-size:18px;line-height:1}
+.kb-piggy-bal{font-size:13px;font-weight:900;color:#A9762B;line-height:1.15}
+.kb-piggy-label{font-size:10px;font-weight:800;color:#BC9459}
+.kb-pet{
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  background:#F6F1FF;border:2px solid #E9DFF8;border-radius:14px;padding:5px 9px;
+}
+.kb-pet-art{width:30px;height:30px;display:block}
+.kb-pet-art svg{width:100%;height:auto;display:block;image-rendering:pixelated}
+.kb-pet-name{font-size:10px;font-weight:800;color:#9A85C4}
+.kb-pet.is-happy .kb-pet-art{animation:kbHappy .6s ease}
+@keyframes kbHappy{0%,100%{transform:scale(1)}40%{transform:scale(1.18) rotate(-7deg)}}
+.kb-bubble{
+  position:absolute;bottom:calc(100% + 7px);right:0;z-index:4;
+  background:#fff;border:2px solid #E9DFF8;border-radius:14px;padding:7px 11px;
+  font-size:11.5px;font-weight:800;color:#6E5B96;box-shadow:var(--shadow);
+  white-space:nowrap;animation:kbPop .22s ease;
+}
+@keyframes kbPop{from{transform:scale(.82);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* 루틴 */
+.kb-routine-sec.is-filtered{display:none}
+.kb-sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:7px;padding:0 2px}
+.kb-sec-head h3{font-size:14px;font-weight:900;color:#4E6247}
+.kb-sec-note{font-size:11.5px;font-weight:800;color:#93A487}
+.kb-routines{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.kb-routine{
+  position:relative;aspect-ratio:1/1;overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  background:#fff;border:2px solid #E7F0DA;border-radius:18px;padding:6px;
+  box-shadow:0 3px 0 rgba(150,175,120,.16);
+  transition:transform .12s ease,background .2s ease;
+}
+.kb-routine:active{transform:scale(.96)}
+.kb-routine-icon{font-size:30px;line-height:1;transition:opacity .2s ease}
+.kb-routine-text{font-size:12px;font-weight:800;color:#5C6B54;text-align:center;line-height:1.2;word-break:keep-all}
+.kb-stamp{
+  position:absolute;inset:0;display:none;place-items:center;
+  background:rgba(120,196,120,.86);color:#fff;font-size:18px;font-weight:900;letter-spacing:3px;
+}
+.kb-routine.is-done{border-color:#9AD68F;background:#F1FAEB}
+.kb-routine.is-done .kb-stamp{display:grid}
+.kb-routine.is-done .kb-routine-icon{opacity:.3}
+.kb-routine.is-done .kb-routine-text{opacity:.35}
+.kb-routine.just-done .kb-stamp{animation:kbStampIn .45s ease}
+@keyframes kbStampIn{0%{transform:scale(1.6);opacity:0}60%{transform:scale(.94);opacity:1}100%{transform:scale(1)}}
+.kb-empty{font-size:11.5px;color:#A9B6A2;text-align:center;padding:9px 0}
+
+/* 홈스쿨 */
+.kb-hw-sec{background:#fff;border:2px solid #EAF0E3;border-radius:20px;padding:12px 13px;box-shadow:var(--shadow-soft)}
+.kb-hw-list{display:flex;flex-direction:column;gap:7px}
+.kb-hw-item{
+  display:flex;align-items:center;gap:9px;text-align:left;
+  background:#FDFFF9;border:2px solid #EAF0E3;border-radius:14px;padding:9px 11px;
+}
+.kb-hw-check{
+  width:24px;height:24px;flex-shrink:0;display:grid;place-items:center;
+  border-radius:8px;border:2px solid #D8E7C9;background:#FBFFF6;
+  font-size:14px;font-weight:900;color:#5C9A52;line-height:1;
+}
+.kb-hw-text{flex:1;min-width:0;font-size:13px;font-weight:800;color:#55644E}
+.kb-hw-star{font-size:12px;color:#E7C15C;font-weight:900}
+.kb-hw-item.is-done{background:#F3FBEC;border-color:#B7E0A6}
+.kb-hw-item.is-done .kb-hw-text{text-decoration:line-through;color:#93A487}
+.kb-hw-item.is-done .kb-hw-check{background:#D6F0C6;border-color:#9AD68F}
+.kb-add-btn{
+  width:100%;margin-top:8px;border:2px dashed #D6E7C6;background:#FBFEF6;
+  border-radius:13px;padding:8px;font-size:12px;font-weight:800;color:#7E9470;
+}
+
+/* ---- 하단 ---- */
+.kb-bottom{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr);gap:14px;align-items:start}
+.kb-panel{background:#fff;border:2px solid #E9F0E0;border-radius:22px;padding:13px 14px;box-shadow:var(--shadow-soft)}
+.kb-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.kb-panel-head h2{font-size:15px;font-weight:900;color:#4E6247}
+.kb-panel-note{font-size:11px;color:#A3B39A;font-weight:700}
+.kb-cal-nav{display:flex;align-items:center;gap:6px}
+.kb-cal-nav strong{font-size:13px;font-weight:900;color:#5E7355}
+.kb-mini-btn{
+  width:26px;height:26px;border-radius:9px;border:1px solid #E1EBD5;background:#fff;
+  font-size:14px;font-weight:900;color:#6E8164;line-height:1;display:grid;place-items:center;
+}
+.kb-week,.kb-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.kb-week{margin-top:9px}
+.kb-week span{text-align:center;font-size:10.5px;font-weight:800;color:#A3B39A}
+.kb-week span:first-child{color:#D59A9A}
+.kb-week span:last-child{color:#8FA8CF}
+.kb-cal-grid{margin-top:3px}
+.kb-cal-cell{position:relative;aspect-ratio:1/1;display:grid;place-items:center;font-size:11.5px;font-weight:800;color:#5C6B54;border-radius:9px}
+.kb-cal-cell.is-empty{background:transparent}
+.kb-cal-cell.has-ev{background:#F2FAEA;color:#3F6B4A}
+.kb-cal-cell.has-ev::after{content:'';position:absolute;bottom:3px;width:4px;height:4px;border-radius:50%;background:#7FC79B}
+.kb-cal-cell.is-today{background:#FFE9A8;color:#7A5E1E;box-shadow:inset 0 0 0 2px #F6D06A}
+.kb-sub-title{margin-top:11px;font-size:12.5px;font-weight:900;color:#5E7355}
+.kb-up-list{display:flex;flex-direction:column;gap:5px;margin-top:5px}
+.kb-up-row{display:flex;align-items:center;gap:7px;background:#FBFFF6;border:1px solid #EDF5E3;border-radius:11px;padding:6px 9px;font-size:11.5px;font-weight:800;color:#5C6B54;min-width:0}
+.kb-up-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kb-up-when{font-size:10.5px;color:#A3B39A;font-weight:700;flex-shrink:0}
+.kb-up-dday{margin-left:auto;background:#EAF6DE;border-radius:999px;padding:2px 8px;font-size:10.5px;color:#4E7A44;font-weight:900;flex-shrink:0}
+.kb-up-dday.today{background:#FFE9A8;color:#8A6A24}
+.kb-today-kids{margin-top:5px;display:flex;flex-direction:column;gap:6px}
+.kb-today-row{display:flex;gap:7px;align-items:flex-start;font-size:11.5px;color:#5C6B54}
+.kb-today-who{font-weight:900;flex-shrink:0;color:#4E6247}
+.kb-today-items{display:flex;flex-wrap:wrap;gap:4px}
+.kb-today-chip{background:#F4FAEE;border:1px solid #E4F0D6;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700}
+.kb-today-none{font-size:11px;color:#A9B6A2;font-weight:700}
+
+/* 오늘 아빠는? */
+.kb-play{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}
+.kb-play-card{
+  position:relative;overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  min-height:140px;padding:10px 8px;
+  background:linear-gradient(160deg,#fff 0%,#F6FCEF 100%);
+  border:2px solid #E7F0DA;border-radius:20px;
+  box-shadow:0 3px 0 rgba(150,175,120,.16);
+  transition:transform .12s ease;
+}
+.kb-play-card:active{transform:scale(.97)}
+.kb-play-emoji{font-size:34px;line-height:1}
+.kb-play-title{font-size:13.5px;font-weight:900;color:#4E6247;text-align:center;line-height:1.25}
+.kb-play-sub{font-size:11px;font-weight:700;color:#93A487;text-align:center}
+.kb-play-who{background:linear-gradient(160deg,#fff 0%,#FFF8E8 100%);border-color:#F3E6C4}
+.kb-play-dad{background:linear-gradient(160deg,#FFFDF2 0%,#EFF7FF 100%);border-color:#DCEAF7}
+.kb-play-mail{background:linear-gradient(160deg,#fff 0%,#F7F1FF 100%);border-color:#E9DFF8}
+.kb-dad-sprite{width:54px;height:54px;display:block}
+.kb-dad-sprite svg{width:100%;height:auto;display:block;image-rendering:pixelated}
+.kb-dad-sprite.is-dancing{animation:kbDance .5s ease-in-out infinite}
+@keyframes kbDance{0%,100%{transform:rotate(-7deg) translateY(0)}50%{transform:rotate(7deg) translateY(-6px)}}
+.kb-note{position:absolute;font-size:16px;pointer-events:none;animation:kbNoteUp 1.3s ease-out forwards}
+@keyframes kbNoteUp{0%{opacity:0;transform:translateY(6px) scale(.7)}30%{opacity:1}100%{opacity:0;transform:translateY(-44px) scale(1.1)}}
+.kb-dad-note{margin-top:9px;font-size:11.5px;font-weight:700;color:#93A487;text-align:center}
+
+/* ---- 모달: 설정·용돈·룰렛·우체통 ---- */
+.kb-set-kids,.kb-pick-row{display:flex;flex-wrap:wrap;gap:7px}
+.kb-pick{
+  border:2px solid #E7F0DA;background:#fff;border-radius:999px;
+  padding:7px 13px;font-size:12.5px;font-weight:800;color:#7C8C72;
+}
+.kb-pick.is-on{background:#DDF3C8;border-color:#A9D584;color:#3B6031}
+.kb-set-sec{margin-top:12px}
+.kb-set-row{display:flex;align-items:center;gap:6px;margin-top:6px}
+.kb-set-icon{
+  width:36px;height:36px;flex-shrink:0;display:grid;place-items:center;
+  border-radius:11px;border:1px solid #E7F0DA;background:#FBFFF6;font-size:18px;line-height:1;
+}
+.kb-set-icon.flat{border:none;background:transparent;color:#E7C15C;font-weight:900;font-size:16px}
+.kb-set-text{
+  flex:1;min-width:0;border:1.5px solid #EAE1D2;border-radius:11px;
+  padding:8px 10px;font-size:13px;font-weight:700;color:#4A3F35;background:#fff;outline:none;
+}
+.kb-set-text:focus{border-color:#D9C8A9}
+.kb-set-del{
+  width:30px;height:30px;flex-shrink:0;border-radius:9px;font-size:12px;font-weight:900;
+  border:1px solid #F7D7DC;background:#FFF0F1;color:#BC5666;
+}
+.kb-set-add{display:flex;gap:6px;margin-top:8px;align-items:center}
+.kb-set-add .text-input{flex:1;min-width:0;padding:9px 11px;font-size:13px}
+
+.kb-money-bal{
+  display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  background:linear-gradient(140deg,#FFF9EC 0%,#FFF3DA 100%);
+  border:1px solid #F4E2BF;border-radius:16px;padding:12px 14px;
+}
+.kb-money-bal span{font-size:12px;font-weight:800;color:#B08A45}
+.kb-money-bal strong{font-size:22px;font-weight:900;color:#A9762B}
+.kb-money-form{margin-top:10px}
+.kb-money-row{display:grid;grid-template-columns:1fr 1.4fr;gap:7px}
+.kb-money-row .text-input{padding:9px 11px;font-size:13px}
+.kb-money-chips{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.kb-money-actions{display:flex;gap:7px;margin-top:9px}
+.kb-money-actions .btn{flex:1;padding:10px 8px;font-size:12.5px}
+.kb-money-list{margin-top:6px;display:flex;flex-direction:column;gap:5px;max-height:240px;overflow:auto}
+.kb-money-item{display:flex;align-items:center;gap:7px;background:#FBFFF6;border:1px solid #EDF5E3;border-radius:11px;padding:6px 9px;font-size:11.5px}
+.kb-money-when{color:#A3B39A;font-weight:700;flex-shrink:0}
+.kb-money-memo{flex:1;min-width:0;font-weight:800;color:#5C6B54;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kb-money-amt{font-weight:900;color:#3F8A5A;flex-shrink:0}
+.kb-money-item.out .kb-money-amt{color:#C0633E}
+
+.kb-wheel{
+  margin:12px 0;padding:22px 10px;text-align:center;
+  font-size:24px;font-weight:900;color:#3F6B4A;
+  background:linear-gradient(160deg,#FFFDF2,#EFF8E4);
+  border:3px dashed #CBE3B2;border-radius:20px;
+}
+.kb-wheel.is-spinning{animation:kbWheelShake .18s linear infinite;color:#A9762B}
+@keyframes kbWheelShake{0%,100%{transform:translateX(-3px)}50%{transform:translateX(3px)}}
+.kb-wheel.is-winner{background:linear-gradient(160deg,#FFF4C9,#E7F7D6);border-color:#EFC96B;animation:kbWinPop .5s ease}
+@keyframes kbWinPop{0%{transform:scale(.94)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+.kb-wheel-result{text-align:center;font-size:13px;font-weight:900;color:#A9762B;min-height:22px;margin-top:8px}
+.kb-mail-list{margin-top:6px;display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto}
+.kb-mail-item{display:flex;gap:8px;align-items:flex-start;background:#FBFFF6;border:1px solid #EDF5E3;border-radius:13px;padding:8px 10px}
+.kb-mail-body{flex:1;min-width:0}
+.kb-mail-head{font-size:10.5px;font-weight:800;color:#A3B39A}
+.kb-mail-text{font-size:12.5px;font-weight:800;color:#4E6247;word-break:break-word}
+.kb-dad-chips{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 4px}
+.kb-dad-chips .kb-pick{flex:1 1 46%}
+
+/* 보드·여행에서 아이들 보드로 가는 버튼 */
+.bd-tab-kids{
+  background:#DFF3C9;border:3px solid #3E4E63;border-radius:12px;
+  padding:7px 11px;font-weight:900;font-size:12.5px;color:#3B6031;
+  box-shadow:0 3px 0 rgba(62,78,99,.4);transition:transform .12s ease;
+}
+.bd-tab-kids:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(62,78,99,.4)}
+.tv-nav-kids{background:#DFF3C9;border-color:#3E4E63;color:#3B6031}
+
+@media (max-width:1023px){
+  .kb-main{grid-template-columns:1fr}
+  .kb-bottom{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .kb-inner{padding:10px 11px calc(18px + var(--safe-b))}
+  .kb-bar{padding:10px 11px;gap:8px 10px}
+  .kb-brand-title{font-size:17px}
+  .kb-tools{margin-left:0;width:100%}
+  .kb-tool{flex:1;text-align:center}
+  .kb-nav{width:100%}
+  .kb-nav-btn{flex:1;text-align:center}
+  .kb-routines{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kb-routine{aspect-ratio:auto;min-height:90px}
+  .kb-routine-icon{font-size:27px}
+  .kb-play{grid-template-columns:1fr}
+  .kb-play-card{flex-direction:row;justify-content:flex-start;gap:10px;min-height:66px;padding:10px 12px;text-align:left}
+  .kb-play-title,.kb-play-sub{text-align:left}
+  .kb-play-card .kb-dad-sprite{width:42px;height:42px}
+  .kb-profile{flex-wrap:wrap}
+  .kb-profile-actions{margin-left:0;width:100%}
+  .kb-piggy,.kb-pet{flex:1;flex-direction:row;justify-content:center;gap:6px;padding:7px 9px}
+}
+@media (max-width:400px){
+  .kb-clock-digits{font-size:19px}
+  .kb-tool{font-size:11px;padding:6px 7px}
+  .kb-money-row{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  .kb-dad-sprite.is-dancing,.kb-wheel.is-spinning,.kb-pet.is-happy .kb-pet-art,.kb-routine.just-done .kb-stamp{animation:none}
+}
+
+/* 아이들 보드 — 아빠 댄스 버튼 · 우체통 미리보기 */
+.kb-dance-btn{
+  width:100%;margin-top:10px;border:none;border-radius:16px;padding:12px;
+  font-size:14px;font-weight:900;color:#3B6031;
+  background:linear-gradient(140deg,#DDF3C8,#BFE6A0);
+  box-shadow:0 4px 0 rgba(120,160,90,.32);
+}
+.kb-dance-btn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(120,160,90,.32)}
+.kb-mail-peek{
+  margin-top:9px;display:flex;align-items:center;gap:6px;min-height:38px;
+  background:#FBFFF6;border:1px solid #EDF5E3;border-radius:13px;padding:8px 11px;
+  font-size:11.5px;font-weight:700;color:#6E8164;
+}
+.kb-mail-peek .peek-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kb-mail-peek strong{color:#4E6247;font-weight:900}
+
+/* 아이들 보드 — 달력 아래 일정 두 칸 */
+.kb-cal-lists{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 12px;margin-top:2px}
+.kb-cal-col{min-width:0}
+.kb-cal-cell{aspect-ratio:auto;min-height:34px}
+.kb-today-row{flex-direction:column;gap:3px}
+@media (max-width:1023px){
+  .kb-cal-lists{grid-template-columns:1fr}
+  .kb-today-row{flex-direction:row;gap:7px}
+}

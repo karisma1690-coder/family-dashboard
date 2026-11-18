@@ -1690,7 +1690,9 @@ function saveSettings() {
 }
 
 function exportJSON() {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  // 아이들 보드 기록(루틴 완료·별·용돈 기입장·우체통)도 같은 백업에 담아요.
+  const payload = Object.assign({}, state, { kids: kb });
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1712,10 +1714,15 @@ function importJSON(file) {
       const next = normalizeState(parsed);
       // 여행 보드가 생기기 전 백업에는 travel이 없어요 — 불러올 때 지금 여행 기록은 지키기
       if (!Array.isArray(parsed.travel)) next.travel = state.travel;
+      // 아이들 보드 기록도 마찬가지예요 — 예전 백업에는 없으니 지금 기록을 지켜요.
+      const nextKids = parsed.kids && typeof parsed.kids === 'object' ? kbNormalize(parsed.kids) : kb;
       state = next;
+      kb = nextKids;
+      kbSave();
       relinkTravelEvents();
       save();
       renderAll();
+      if (kidsActive()) renderKidsAll();
       closeModal('modalSettings');
       toast('백업을 불러왔어요');
     } catch (err) {
@@ -1728,11 +1735,15 @@ function importJSON(file) {
 function resetAll() {
   if (!confirm('모든 기록을 지울까요? 처음부터 시작합니다. 되돌릴 수 없어요.')) return;
   state = emptyState();
+  kb = kbDefault();
+  kbUI.month = new Date();
   fun = { dadStatus: 'work', muted: false, recent: [] };
   saveFun();
+  kbSave();
   stopJuke();
   save();
   renderAll();
+  if (kidsActive()) renderKidsAll();
   closeModal('modalSettings');
   toast('처음 상태로 되돌렸어요');
 }
@@ -2124,6 +2135,7 @@ function bindEvents() {
         getDay(key);
         syncFixedForDay(key);
         renderAll();
+        if (kidsActive()) renderKidsAll();
       }
     }
   }, 30000);
@@ -2151,6 +2163,7 @@ function init() {
   bindEvents();
   initBoard();
   initTravel();
+  initKids();
   fetchWeather();
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
@@ -2356,18 +2369,25 @@ function boardActive() {
 function setMode(mode, persist = true) {
   const isBoard = mode === 'board';
   const isTravel = mode === 'travel';
+  const isKids = mode === 'kids';
   document.body.classList.toggle('is-board', isBoard);
   document.body.classList.toggle('is-travel', isTravel);
+  document.body.classList.toggle('is-kids', isKids);
   const bv = $('#boardView');
   const tv = $('#travelView');
+  const kv = $('#kidsView');
   const app = $('.app');
   if (bv) bv.hidden = !isBoard;
   if (tv) tv.hidden = !isTravel;
-  if (app) app.hidden = isBoard || isTravel;
-  if (persist) { try { localStorage.setItem(MODE_KEY, isBoard ? 'board' : isTravel ? 'travel' : 'record'); } catch (_) {} }
+  if (kv) kv.hidden = !isKids;
+  if (app) app.hidden = isBoard || isTravel || isKids;
+  if (persist) {
+    try { localStorage.setItem(MODE_KEY, isBoard ? 'board' : isTravel ? 'travel' : isKids ? 'kids' : 'record'); } catch (_) {}
+  }
   window.scrollTo(0, 0);
   if (isBoard) renderBoardAll();
   if (isTravel) renderTravel();
+  if (isKids) renderKidsAll();
 }
 
 function restoreMode() {
@@ -2375,6 +2395,7 @@ function restoreMode() {
   try { saved = localStorage.getItem(MODE_KEY) || 'record'; } catch (_) {}
   if (saved === 'board') setMode('board', false);
   else if (saved === 'travel') setMode('travel', false);
+  else if (saved === 'kids') setMode('kids', false);
 }
 
 function fmtHM(hm) {
@@ -3712,4 +3733,1270 @@ function initTravel() {
   } catch (_) {}
   bindTravelEvents();
   renderTravelAll();
+}
+
+/* ============================================================
+   🧒 아이들 보드 — 아이들 전용 도트 월드
+   큰 그림 루틴 · 홈스쿨 숙제 · 별 포인트 · 용돈 기입장 ·
+   다가오는 일정 · 누가 먼저? · 아빠 상태 · 가족 우체통
+   모든 기록은 이 기기의 localStorage에만 저장됩니다.
+   ============================================================ */
+const KIDS_KEY = 'family-dashboard.kids.v1';
+
+const KB_KIDS = [
+  { id: 'yuns',  name: '윤슬', nick: '반짝이', petName: '몽글이', pet: 'bunny', icon: '🐰', color: '#C9708E', soft: '#FFEAF1' },
+  { id: 'noeul', name: '노을', nick: '포근이', petName: '삐약이', pet: 'chick', icon: '🐣', color: '#C08B2B', soft: '#FFF3D9' },
+];
+const KB_KID_MAP = Object.fromEntries(KB_KIDS.map(k => [k.id, k]));
+
+const KB_WHO = [
+  { id: 'yuns',  name: '윤슬', emoji: '🐰' },
+  { id: 'noeul', name: '노을', emoji: '🐣' },
+  { id: 'mom',   name: '엄마', emoji: '🐻' },
+  { id: 'dad',   name: '아빠', emoji: '🐱' },
+];
+const KB_WHO_MAP = Object.fromEntries(KB_WHO.map(w => [w.id, w]));
+const KB_MAIL_TO = [{ id: 'all', name: '가족 모두', emoji: '🏡' }].concat(KB_WHO);
+
+const KB_ICONS = ['🛏️', '🪥', '🍚', '🎒', '🚿', '🧸', '📚', '🧹', '🧦', '🥛', '🎨', '⭐', '🧼', '🚽', '👕', '🦷'];
+
+const KB_DEFAULT_ROUTINES = {
+  morning: [
+    { icon: '🛏️', text: '이불 정리' },
+    { icon: '🪥', text: '세수·양치' },
+    { icon: '🍚', text: '아침 밥' },
+    { icon: '🎒', text: '준비물 챙기기' },
+  ],
+  evening: [
+    { icon: '🍚', text: '밥 먹기' },
+    { icon: '🪥', text: '양치하기' },
+    { icon: '🚿', text: '샤워' },
+    { icon: '🧸', text: '장난감 정리' },
+  ],
+};
+const KB_DEFAULT_HOMEWORK = {
+  yuns: ['수학 10~12쪽', '한글 쓰기 2장'],
+  noeul: ['색칠 공부 1장'],
+};
+const KB_DEFAULT_GOAL = {
+  yuns: '책 3권 읽기',
+  noeul: '한글 5개 익히기',
+};
+const KB_PET_LINES = [
+  '오늘도 반짝반짝! ✨',
+  '같이 놀자~ 🎈',
+  '{n}는 최고야! 💛',
+  '{n} 응원해! 📣',
+  '힘내! 하이파이브 🙌',
+  '쿵쿵 신난다! 🎵',
+  '냠냠 맛있는 거 먹자 🍪',
+];
+
+/* 도트 캐릭터 (아이 2명 + 아빠) */
+const KB_KID_PIX = {
+  yuns: [
+    '..bbbbbb..',
+    '.bbbbbbbb.',
+    'gbbbbbbbbg',
+    'gbccccccbg',
+    'ccecccccec',
+    'dccccccccd',
+    '.cccmmccc.',
+    '..cccccc..',
+    '.ffffffff.',
+    'ffffffffff',
+    '.ff....ff.',
+  ],
+  noeul: [
+    '...bbbb...',
+    '..bbbbbb..',
+    '.bbbbbbbb.',
+    '.bccccccb.',
+    'ccecccccec',
+    'dccccccccd',
+    '.cccmmccc.',
+    '..cccccc..',
+    '.ffffffff.',
+    'ffffffffff',
+    '.ff....ff.',
+  ],
+};
+const KB_KID_PAL = {
+  yuns:  { a: '#8A5A6B', b: '#6B4453', c: '#FFE1C9', d: '#FFB8C9', e: '#3A3226', f: '#FFB7CC', g: '#FF8FAE', m: '#C4516B' },
+  noeul: { a: '#8A6A3B', b: '#6B4E2E', c: '#FFE6D2', d: '#FFC2CF', e: '#3A3226', f: '#FFE08A', g: '#F5BE45', m: '#C4516B' },
+};
+const KB_DAD_PIX = [
+  '..aaaaaa..',
+  '.abbbbbba.',
+  'abbbbbbbba',
+  'acccccccca',
+  'acecccceca',
+  'acccccccca',
+  '.cccmmccc.',
+  '..cccccc..',
+  '.ffffffff.',
+  'ffffffffff',
+  '.ff....ff.',
+];
+const KB_DAD_PAL = { a: '#5B4A38', b: '#4A3F35', c: '#FFE0C8', d: '#FFC2CF', e: '#3A3226', f: '#8CC0E8', m: '#B4516B' };
+
+function kbAvatarSVG(kid) {
+  return pixSVG(KB_KID_PIX[kid] || KB_KID_PIX.yuns, KB_KID_PAL[kid] || KB_KID_PAL.yuns, 5);
+}
+function kbPetSVG(kid) {
+  return kid === 'noeul' ? pixSVG(CHICK_PIX, CHICK_PALETTE, 3) : pixSVG(RABBIT_PIX, RABBIT_PALETTE, 3);
+}
+
+/* ---------------- 데이터 ---------------- */
+function kbDefault() {
+  const kids = {};
+  KB_KIDS.forEach(k => {
+    kids[k.id] = {
+      nick: k.nick,
+      goal: KB_DEFAULT_GOAL[k.id] || '',
+      routines: {
+        morning: KB_DEFAULT_ROUTINES.morning.map(r => ({ id: uid(), icon: r.icon, text: r.text })),
+        evening: KB_DEFAULT_ROUTINES.evening.map(r => ({ id: uid(), icon: r.icon, text: r.text })),
+      },
+      homework: (KB_DEFAULT_HOMEWORK[k.id] || []).map(t => ({ id: uid(), text: t })),
+    };
+  });
+  return {
+    v: 1,
+    kids,
+    done: {},
+    stars: { yuns: 0, noeul: 0 },
+    money: { yuns: [], noeul: [] },
+    mailbox: [],
+    roulette: KB_KIDS.map(k => k.id).concat(['mom', 'dad']),
+    settings: { sound: true },
+  };
+}
+
+function kbNum(n) { const v = Math.round(Number(n)); return Number.isFinite(v) ? v : 0; }
+
+function kbNormalize(raw) {
+  const base = kbDefault();
+  if (!raw || typeof raw !== 'object') return base;
+  const out = {
+    v: 1,
+    kids: {},
+    done: {},
+    stars: {},
+    money: {},
+    mailbox: [],
+    roulette: base.roulette.slice(),
+    settings: { sound: !(raw.settings && raw.settings.sound === false) },
+  };
+  KB_KIDS.forEach(k => {
+    const rk = (raw.kids && raw.kids[k.id]) || {};
+    const routines = {};
+    ['morning', 'evening'].forEach(p => {
+      const src = rk.routines && Array.isArray(rk.routines[p]) ? rk.routines[p] : base.kids[k.id].routines[p];
+      routines[p] = src.filter(it => it && it.text).slice(0, 12).map(it => ({
+        id: it.id || uid(),
+        icon: String(it.icon || '⭐').slice(0, 4),
+        text: String(it.text).slice(0, 20),
+      }));
+    });
+    const hw = Array.isArray(rk.homework) ? rk.homework : base.kids[k.id].homework;
+    out.kids[k.id] = {
+      nick: String(rk.nick != null ? rk.nick : base.kids[k.id].nick).slice(0, 12),
+      goal: String(rk.goal != null ? rk.goal : base.kids[k.id].goal).slice(0, 40),
+      routines,
+      homework: hw.filter(it => it && it.text).slice(0, 12).map(it => ({
+        id: it.id || uid(),
+        text: String(it.text).slice(0, 24),
+      })),
+    };
+    out.stars[k.id] = Math.max(0, kbNum((raw.stars || {})[k.id]));
+    const money = Array.isArray((raw.money || {})[k.id]) ? (raw.money || {})[k.id] : [];
+    out.money[k.id] = money.filter(m => m && kbNum(m.amount) > 0).slice(-200).map(m => ({
+      id: m.id || uid(),
+      kind: m.kind === 'out' ? 'out' : 'in',
+      amount: Math.abs(kbNum(m.amount)),
+      memo: String(m.memo || '').slice(0, 30),
+      at: Number(m.at) || Date.now(),
+    }));
+  });
+  const done = raw.done && typeof raw.done === 'object' ? raw.done : {};
+  Object.keys(done).forEach(day => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+    const row = {};
+    KB_KIDS.forEach(k => {
+      const d = done[day] && done[day][k.id];
+      if (d && typeof d === 'object') {
+        const keep = {};
+        Object.keys(d).forEach(id => { if (d[id]) keep[id] = 1; });
+        row[k.id] = keep;
+      }
+    });
+    out.done[day] = row;
+  });
+  out.mailbox = (Array.isArray(raw.mailbox) ? raw.mailbox : [])
+    .filter(m => m && m.text)
+    .slice(-200)
+    .map(m => ({
+      id: m.id || uid(),
+      from: KB_WHO_MAP[m.from] ? m.from : 'dad',
+      to: m.to === 'all' || KB_WHO_MAP[m.to] ? m.to : 'all',
+      text: String(m.text).slice(0, 80),
+      at: Number(m.at) || Date.now(),
+    }));
+  out.roulette = Array.isArray(raw.roulette) && raw.roulette.length
+    ? raw.roulette.filter(id => KB_WHO_MAP[id])
+    : base.roulette.slice();
+  return out;
+}
+
+let kb = kbLoad();
+let kbUI = {
+  month: new Date(),
+  period: 'morning',
+  settingsKid: 'yuns',
+  moneyKid: 'yuns',
+  mailTo: 'all',
+  mailFrom: 'dad',
+  spinning: false,
+};
+
+function kbLoad() {
+  try {
+    const raw = localStorage.getItem(KIDS_KEY);
+    if (!raw) return kbDefault();
+    return kbNormalize(JSON.parse(raw));
+  } catch (err) {
+    return kbDefault();
+  }
+}
+
+let kbSaveTimer = null;
+function kbSave() {
+  clearTimeout(kbSaveTimer);
+  kbSaveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(KIDS_KEY, JSON.stringify(kb));
+    } catch (err) {
+      toast('저장 공간이 부족해 아이들 보드 기록을 저장하지 못했어요');
+    }
+  }, 60);
+}
+
+function kidsActive() {
+  return document.body.classList.contains('is-kids');
+}
+
+/* ---------------- 효과음 (Web Audio) ---------------- */
+let kbAudio = null;
+function kbSoundOn() { return !!(kb.settings && kb.settings.sound); }
+function kbCtx() {
+  if (!kbSoundOn()) return null;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  if (!kbAudio) {
+    try { kbAudio = new AC(); } catch (err) { return null; }
+  }
+  if (kbAudio.state === 'suspended') kbAudio.resume().catch(() => {});
+  return kbAudio;
+}
+const KB_SOUNDS = {
+  done: [523, 659, 784],
+  star: [880, 1175],
+  undo: [392, 330],
+  pet: [740, 988],
+  tick: [660],
+  win: [523, 659, 784, 1047],
+};
+function kbPlay(kind) {
+  const ctx = kbCtx();
+  if (!ctx) return;
+  const notes = KB_SOUNDS[kind] || KB_SOUNDS.star;
+  const t0 = ctx.currentTime + 0.02;
+  const master = ctx.createGain();
+  master.gain.value = kind === 'win' ? 0.16 : 0.1;
+  master.connect(ctx.destination);
+  notes.forEach((f, i) => {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = kind === 'win' ? 'triangle' : 'square';
+    const t = t0 + i * 0.085;
+    osc.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(1, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
+    osc.connect(g); g.connect(master);
+    osc.start(t); osc.stop(t + 0.2);
+  });
+}
+
+/* ---------------- 계산 ---------------- */
+function kbDoneMap(key, kid) {
+  const day = (kb.done[key] || (kb.done[key] = {}));
+  return day[kid] || (day[kid] = {});
+}
+function kbListOf(kid, kind) {
+  const data = kb.kids[kid];
+  if (!data) return [];
+  if (kind === 'homework') return data.homework;
+  return data.routines[kind] || (data.routines[kind] = []);
+}
+function kbFindItem(kid, kind, id) {
+  return kbListOf(kid, kind).find(it => it.id === id) || null;
+}
+function kbPeriodDone(key, kid, period) {
+  const done = (kb.done[key] && kb.done[key][kid]) || {};
+  return kbListOf(kid, period).filter(it => done[it.id]).length;
+}
+function kbDoneCount(key, kid) {
+  const done = (kb.done[key] && kb.done[key][kid]) || {};
+  let n = 0;
+  ['morning', 'evening'].forEach(p => { kbListOf(kid, p).forEach(it => { if (done[it.id]) n++; }); });
+  kbListOf(kid, 'homework').forEach(it => { if (done[it.id]) n++; });
+  return n;
+}
+function kbTotalCount(kid) {
+  return kbListOf(kid, 'morning').length + kbListOf(kid, 'evening').length + kbListOf(kid, 'homework').length;
+}
+function kbBalance(kid) {
+  return (kb.money[kid] || []).reduce((s, m) => s + (m.kind === 'out' ? -m.amount : m.amount), 0);
+}
+function kbShortDate(ts) {
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+function kbDefaultPeriod() {
+  return new Date().getHours() < 12 ? 'morning' : 'evening';
+}
+
+/* ---------------- 렌더: 시계 ---------------- */
+function renderKidsClock() {
+  const now = new Date();
+  const dateEl = $('#kbDate');
+  if (dateEl) dateEl.textContent = dateLabel(now);
+  const ampm = $('#kbAmpm');
+  if (ampm) ampm.textContent = now.getHours() < 12 ? '오전' : '오후';
+  const digits = $('#kbDigits');
+  if (digits) {
+    const h = now.getHours() % 12 || 12;
+    digits.innerHTML = pixClockSVG(`${h}:${pad2(now.getMinutes())}`);
+    digits.setAttribute('aria-label', `현재 시각 ${dateLabel(now)} ${fmtHM(`${pad2(now.getHours())}:${pad2(now.getMinutes())}`)}`);
+  }
+}
+
+/* ---------------- 렌더: 아이 카드 ---------------- */
+function renderKidsColumns() {
+  KB_KIDS.forEach(k => renderKidsColumn(k.id));
+}
+
+function renderKidsColumn(kid, opts = {}) {
+  const col = document.getElementById('kbCol-' + kid);
+  const k = KB_KID_MAP[kid];
+  if (!col || !k) return;
+  const key = dateKey();
+  const data = kb.kids[kid];
+  const done = (kb.done[key] && kb.done[key][kid]) || {};
+  const stars = kb.stars[kid] || 0;
+  const doneToday = kbDoneCount(key, kid);
+  const total = kbTotalCount(kid);
+
+  col.innerHTML = `
+    <section class="kb-profile" style="--kid:${k.color};--kid-soft:${k.soft}">
+      <span class="kb-avatar" aria-hidden="true">${kbAvatarSVG(kid)}</span>
+      <div class="kb-profile-main">
+        <div class="kb-name-row">
+          <h2 class="kb-name">${esc(k.name)}</h2>
+          <span class="kb-nick">${esc(data.nick || '')}</span>
+        </div>
+        <p class="kb-goal">🎯 ${data.goal ? esc(data.goal) : '목표를 정해 보세요'}</p>
+        <div class="kb-badges">
+          <span class="kb-badge kb-stars"><span aria-hidden="true">★</span> 별 ${stars}</span>
+          <span class="kb-badge">오늘 완료 ${doneToday}개</span>
+          <span class="kb-badge">전체 ${doneToday}/${total}</span>
+        </div>
+      </div>
+      <div class="kb-profile-actions">
+        <button class="kb-piggy" type="button" data-kb-money="${kid}" aria-label="${esc(k.name)} 용돈 기입장 열기">
+          <span class="kb-piggy-emoji" aria-hidden="true">🐷</span>
+          <span class="kb-piggy-bal">${money(kbBalance(kid))}원</span>
+          <span class="kb-piggy-label">용돈 기입장</span>
+        </button>
+        <button class="kb-pet" type="button" data-kb-pet="${kid}" aria-label="${esc(k.name)} 친구 ${esc(k.petName)}와 놀기">
+          <span class="kb-pet-art" aria-hidden="true">${kbPetSVG(kid)}</span>
+          <span class="kb-pet-name">${esc(k.petName)}</span>
+        </button>
+      </div>
+    </section>
+    ${kbRoutineSection(kid, 'morning', '🌞 아침 루틴', done)}
+    ${kbRoutineSection(kid, 'evening', '🌙 저녁 루틴', done)}
+    ${kbHomeworkSection(kid, done)}
+  `;
+}
+
+function kbRoutineSection(kid, period, title, done) {
+  const items = kbListOf(kid, period);
+  const nDone = items.filter(it => done[it.id]).length;
+  const hidden = kbUI.period !== 'all' && kbUI.period !== period;
+  const cards = items.length
+    ? items.map(it => `
+        <button class="kb-routine ${done[it.id] ? 'is-done' : ''}" type="button"
+          data-kb-routine="${it.id}" data-kb-kid="${kid}" data-kb-period="${period}"
+          aria-pressed="${!!done[it.id]}" aria-label="${esc(it.text)} ${done[it.id] ? '완료됨 — 누르면 취소' : '완료하기'}">
+          <span class="kb-routine-icon" aria-hidden="true">${esc(it.icon)}</span>
+          <span class="kb-routine-text">${esc(it.text)}</span>
+          <span class="kb-stamp" aria-hidden="true">완료</span>
+        </button>`).join('')
+    : '<p class="kb-empty">아직 루틴이 없어요 — ⚙️ 부모 설정에서 넣어 주세요</p>';
+  return `
+    <section class="kb-routine-sec${hidden ? ' is-filtered' : ''}" data-kb-sec="${period}">
+      <div class="kb-sec-head"><h3>${title}</h3><span class="kb-sec-note">${nDone}/${items.length} 완료</span></div>
+      <div class="kb-routines">${cards}</div>
+    </section>`;
+}
+
+function kbHomeworkSection(kid, done) {
+  const items = kbListOf(kid, 'homework');
+  const nDone = items.filter(it => done[it.id]).length;
+  const rows = items.length
+    ? items.map(it => `
+        <button class="kb-hw-item ${done[it.id] ? 'is-done' : ''}" type="button"
+          data-kb-hw="${it.id}" data-kb-kid="${kid}" aria-pressed="${!!done[it.id]}"
+          aria-label="${esc(it.text)} ${done[it.id] ? '완료됨 — 누르면 취소' : '완료하기'}">
+          <span class="kb-hw-check" aria-hidden="true">${done[it.id] ? '✓' : ''}</span>
+          <span class="kb-hw-text">${esc(it.text)}</span>
+          <span class="kb-hw-star" aria-hidden="true">★</span>
+        </button>`).join('')
+    : '<p class="kb-empty">아직 숙제가 없어요 — 부모님이 ＋ 숙제 추가로 넣어 주세요</p>';
+  return `
+    <section class="kb-hw-sec">
+      <div class="kb-sec-head"><h3>📚 홈스쿨 숙제</h3><span class="kb-sec-note">${nDone}/${items.length} 완료</span></div>
+      <div class="kb-hw-list">${rows}</div>
+      <button class="kb-add-btn" type="button" data-kb-addhw="${kid}">＋ 숙제 추가</button>
+    </section>`;
+}
+
+/* ---------------- 동작: 완료 / 취소 ---------------- */
+function kbToggleItem(kid, id) {
+  const key = dateKey();
+  const d = kbDoneMap(key, kid);
+  const on = !d[id];
+  if (on) d[id] = 1; else delete d[id];
+  kb.stars[kid] = Math.max(0, (kb.stars[kid] || 0) + (on ? 1 : -1));
+  kbSave();
+  return on;
+}
+
+function kbToggleRoutine(btn) {
+  const kid = btn.dataset.kbKid;
+  const id = btn.dataset.kbRoutine;
+  const on = kbToggleItem(kid, id);
+  renderKidsColumn(kid);
+  if (on) {
+    const fresh = document.querySelector(`#kbCol-${kid} [data-kb-routine="${id}"]`);
+    if (fresh) {
+      fresh.classList.add('just-done');
+      const r = fresh.getBoundingClientRect();
+      const target = document.querySelector(`#kbCol-${kid} .kb-stars`);
+      if (target) flyCoinFromRect(r, '+1 ★', target);
+      confetti(r.left + r.width / 2, r.top + r.height / 2, 14);
+      setTimeout(() => fresh.classList.remove('just-done'), 650);
+    }
+    kbPlay('done');
+  } else {
+    kbPlay('undo');
+  }
+}
+
+function kbToggleHomework(btn) {
+  const kid = btn.dataset.kbKid;
+  const id = btn.dataset.kbHw;
+  const on = kbToggleItem(kid, id);
+  renderKidsColumn(kid);
+  if (on) {
+    const fresh = document.querySelector(`#kbCol-${kid} [data-kb-hw="${id}"]`);
+    if (fresh) {
+      const r = fresh.getBoundingClientRect();
+      const target = document.querySelector(`#kbCol-${kid} .kb-stars`);
+      if (target) flyCoinFromRect(r, '+1 ★', target);
+      confetti(r.left + r.width / 2, r.top + 10, 12);
+    }
+    kbPlay('star');
+    toast('숙제 완료! ★ 별 하나');
+  } else {
+    kbPlay('undo');
+  }
+}
+
+/* ---------------- 동작: 도트 펫 ---------------- */
+function kbPetPlay(kid, btn) {
+  const k = KB_KID_MAP[kid];
+  if (!k || !btn) return;
+  const wrap = btn.parentElement;
+  if (!wrap) return;
+  wrap.querySelectorAll('.kb-bubble').forEach(n => n.remove());
+  const line = KB_PET_LINES[Math.floor(Math.random() * KB_PET_LINES.length)].replace('{n}', k.name);
+  const bubble = document.createElement('div');
+  bubble.className = 'kb-bubble';
+  bubble.textContent = `${k.petName}: ${line}`;
+  wrap.appendChild(bubble);
+  btn.classList.remove('is-happy');
+  void btn.offsetWidth;
+  btn.classList.add('is-happy');
+  kbPlay('pet');
+  const r = btn.getBoundingClientRect();
+  confetti(r.left + r.width / 2, r.top + r.height / 2, 12);
+  setTimeout(() => { bubble.remove(); btn.classList.remove('is-happy'); }, 2300);
+}
+
+/* ---------------- 렌더: 달력·일정 ---------------- */
+function kbEventsOn(key) {
+  try { return eventsOn(key); } catch (err) { return []; }
+}
+function kbEventWhen(ev, key) {
+  const d = parseKey(key);
+  return `${d.getMonth() + 1}/${d.getDate()}${ev.time ? ' ' + fmtHM(ev.time) : ''}`;
+}
+function kbUpcoming(max = 4) {
+  const out = [];
+  const today = new Date();
+  for (let i = 0; i <= 90 && out.length < max; i++) {
+    const key = dateKey(addDays(today, i));
+    const seen = new Set();
+    kbEventsOn(key).forEach(ev => {
+      if (seen.has(ev.title) || out.length >= max) return;
+      seen.add(ev.title);
+      out.push({ ev, key, dday: i });
+    });
+  }
+  return out;
+}
+
+function renderKidsCalendar() {
+  const ref = kbUI.month;
+  const mEl = $('#kbCalMonth');
+  if (mEl) mEl.textContent = `${ref.getMonth() + 1}월`;
+  const grid = $('#kbCalGrid');
+  if (grid) {
+    const first = new Date(ref.getFullYear(), ref.getMonth(), 1);
+    const offset = first.getDay();
+    const lastDay = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).getDate();
+    const today = dateKey();
+    const cells = [];
+    for (let i = 0; i < offset; i++) cells.push('<span class="kb-cal-cell is-empty" aria-hidden="true"></span>');
+    for (let d = 1; d <= lastDay; d++) {
+      const key = dateKey(new Date(ref.getFullYear(), ref.getMonth(), d));
+      const evs = kbEventsOn(key);
+      const cls = ['kb-cal-cell', key === today ? 'is-today' : '', evs.length ? 'has-ev' : ''].join(' ').replace(/\s+/g, ' ').trim();
+      const label = `${ref.getMonth() + 1}월 ${d}일${evs.length ? ` · 일정 ${evs.length}개` : ''}`;
+      cells.push(`<span class="${cls}" aria-label="${esc(label)}">${d}</span>`);
+    }
+    grid.innerHTML = cells.join('');
+  }
+
+  const up = $('#kbUpList');
+  if (up) {
+    const list = kbUpcoming();
+    up.innerHTML = list.length
+      ? list.map(x => `
+        <div class="kb-up-row">
+          <span aria-hidden="true">${x.ev.kind === 'bday' ? '🎂' : '📌'}</span>
+          <span class="kb-up-title">${esc(x.ev.title)}</span>
+          <span class="kb-up-when">${esc(kbEventWhen(x.ev, x.key))}</span>
+          <span class="kb-up-dday ${x.dday === 0 ? 'today' : ''}">${x.dday === 0 ? '오늘' : 'D-' + x.dday}</span>
+        </div>`).join('')
+      : '<p class="kb-empty">다가오는 일정이 없어요</p>';
+  }
+
+  const tk = $('#kbTodayKids');
+  if (tk) {
+    tk.innerHTML = KB_KIDS.map(k => {
+      const evs = kbEventsOn(dateKey()).filter(ev => ev.member === k.id || ev.member === 'family');
+      const inner = evs.length
+        ? evs.map(ev => `<span class="kb-today-chip">${ev.time ? esc(fmtHM(ev.time)) + ' ' : ''}${esc(ev.title)}${ev.member === 'family' ? ' (가족)' : ''}</span>`).join('')
+        : '<span class="kb-today-none">오늘은 일정이 없어요</span>';
+      return `<div class="kb-today-row"><span class="kb-today-who">${k.icon} ${esc(k.name)}</span><span class="kb-today-items">${inner}</span></div>`;
+    }).join('');
+  }
+}
+
+/* ---------------- 렌더: 오늘 아빠는? ---------------- */
+function renderKidsDad() {
+  const st = dadStatus();
+  const emoji = $('#kbDadEmoji');
+  if (emoji) emoji.textContent = st.emoji;
+  const label = $('#kbDadLabel');
+  if (label) label.textContent = st.label;
+  const sprite = $('#kbDadSprite');
+  if (sprite && !sprite.dataset.ready) {
+    sprite.innerHTML = pixSVG(KB_DAD_PIX, KB_DAD_PAL, 3);
+    sprite.dataset.ready = '1';
+  }
+  const chips = $('#kbDadChips');
+  if (chips) {
+    chips.innerHTML = DAD_STATUSES.map(s => `
+      <button class="kb-pick ${s.id === st.id ? 'is-on' : ''}" type="button" data-kb-dad="${s.id}" aria-pressed="${s.id === st.id}">
+        <span aria-hidden="true">${s.emoji}</span> ${esc(s.label)}
+      </button>`).join('');
+  }
+  const note = $('#kbDadNote');
+  if (note) note.textContent = `아빠 지금 ${st.emoji} ${st.label} · 눌러서 바꿔요 🕺`;
+}
+
+function kbDadDance() {
+  const sprite = $('#kbDadSprite');
+  const panel = $('.kb-dad-panel');
+  if (sprite) {
+    sprite.classList.remove('is-dancing');
+    void sprite.offsetWidth;
+    sprite.classList.add('is-dancing');
+  }
+  if (panel && !prefersReducedMotion()) {
+    const notes = ['🎵', '🎶', '✨', '💫', '⭐'];
+    for (let i = 0; i < 6; i++) {
+      const n = document.createElement('span');
+      n.className = 'kb-note';
+      n.textContent = notes[Math.floor(Math.random() * notes.length)];
+      n.style.left = (12 + Math.random() * 76) + '%';
+      n.style.top = (30 + Math.random() * 22) + '%';
+      n.style.animationDelay = (i * 0.13).toFixed(2) + 's';
+      panel.appendChild(n);
+      setTimeout(() => n.remove(), 1500 + i * 140);
+    }
+  }
+  if (kbSoundOn() && !fun.muted) playDanceTune();
+  const card = $('#kbDadCard');
+  if (card) {
+    const r = card.getBoundingClientRect();
+    confetti(r.left + r.width / 2, r.top + 12, 22);
+  }
+  clearTimeout(kbDadDance.timer);
+  kbDadDance.timer = setTimeout(() => { if (sprite) sprite.classList.remove('is-dancing'); }, DANCE_MS);
+}
+
+function kbSetDadStatus(id) {
+  if (!DAD_STATUSES.some(s => s.id === id)) return;
+  fun.dadStatus = id;
+  saveFun();
+  renderFamily();
+  renderDadStatus();
+  renderKidsDad();
+  kbDadDance();
+  const st = dadStatus();
+  toast(`아빠 지금 ${st.emoji} ${st.label}`);
+}
+
+/* ---------------- 렌더: 우체통 요약 ---------------- */
+function renderKidsMailSub() {
+  const el = $('#kbMailSub');
+  if (el) {
+    const n = kb.mailbox.length;
+    el.textContent = n ? `쪽지 ${n}장` : '쪽지를 남겨요';
+  }
+  const peek = $('#kbMailPeek');
+  if (peek) {
+    const last = kb.mailbox[kb.mailbox.length - 1];
+    if (!last) {
+      peek.innerHTML = '<span aria-hidden="true">📮</span><span class="peek-text">아직 쪽지가 없어요 — 첫 쪽지를 남겨 보세요</span>';
+    } else {
+      const from = KB_WHO_MAP[last.from] || KB_WHO_MAP.dad;
+      const to = last.to === 'all' ? { name: '가족 모두' } : (KB_WHO_MAP[last.to] || { name: '가족' });
+      peek.innerHTML = `<span aria-hidden="true">📮</span><span class="peek-text"><strong>${esc(from.name)} → ${esc(to.name)}</strong> · ${esc(last.text)}</span>`;
+    }
+  }
+}
+
+function renderKidsAll() {
+  renderKidsClock();
+  renderKidsColumns();
+  renderKidsCalendar();
+  renderKidsDad();
+  renderKidsMailSub();
+  kbSyncSound();
+  kbSyncWake();
+  kbSyncPeriod();
+}
+
+/* ---------------- 컨트롤 바 ---------------- */
+function kbSetPeriod(period, rerender = true) {
+  if (!['all', 'morning', 'evening'].includes(period)) return;
+  kbUI.period = period;
+  kbSyncPeriod();
+  if (rerender) {
+    $$('#kidsView .kb-routine-sec').forEach(sec => {
+      sec.classList.toggle('is-filtered', period !== 'all' && sec.dataset.kbSec !== period);
+    });
+  }
+}
+function kbSyncPeriod() {
+  $$('#kidsView .kb-period').forEach(b => {
+    const on = b.dataset.kbPeriod === kbUI.period;
+    b.classList.toggle('is-active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+}
+
+function kbSyncSound() {
+  const btn = $('#kbSound');
+  if (!btn) return;
+  const on = kbSoundOn();
+  btn.textContent = on ? '🔊 소리 알림' : '🔇 소리 꺼짐';
+  btn.classList.toggle('is-on', false);
+  btn.setAttribute('aria-pressed', String(on));
+}
+function kbToggleSound() {
+  kb.settings.sound = !kb.settings.sound;
+  kbSave();
+  kbSyncSound();
+  if (kb.settings.sound) { kbPlay('star'); toast('소리 알림을 켰어요 🔊'); }
+  else toast('소리 알림을 껐어요 🔇');
+}
+
+function kbIsFullscreen() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+function kbSyncFullscreen() {
+  const btn = $('#kbFull');
+  if (!btn) return;
+  const on = kbIsFullscreen();
+  btn.textContent = on ? '⛶ 전체 화면 끄기' : '⛶ 전체 화면';
+  btn.classList.toggle('is-on', on);
+  btn.setAttribute('aria-pressed', String(on));
+}
+function kbToggleFullscreen() {
+  const root = document.documentElement;
+  if (!kbIsFullscreen()) {
+    const req = root.requestFullscreen || root.webkitRequestFullscreen;
+    if (!req) { toast('이 브라우저는 전체 화면을 지원하지 않아요'); return; }
+    try {
+      const p = req.call(root);
+      if (p && p.catch) p.catch(() => toast('전체 화면을 켜지 못했어요 — 브라우저가 막았어요'));
+      else toast('전체 화면으로 봐요 ⛶');
+    } catch (err) {
+      toast('전체 화면을 켜지 못했어요');
+    }
+  } else {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (exit) {
+      try {
+        const p = exit.call(document);
+        if (p && p.catch) p.catch(() => {});
+      } catch (err) { /* 무시 */ }
+    }
+  }
+  setTimeout(kbSyncFullscreen, 220);
+}
+
+let kbWake = null;
+let kbWakeWanted = false;
+function kbSyncWake() {
+  const btn = $('#kbWake');
+  if (!btn) return;
+  btn.textContent = kbWake ? '💡 화면 유지 켜짐' : '💡 화면 유지';
+  btn.classList.toggle('is-on', !!kbWake);
+  btn.setAttribute('aria-pressed', String(!!kbWake));
+}
+async function kbToggleWake() {
+  if (kbWake) {
+    kbWakeWanted = false;
+    try { await kbWake.release(); } catch (err) { /* 무시 */ }
+    kbWake = null;
+    kbSyncWake();
+    toast('화면 유지를 껐어요');
+    return;
+  }
+  if (!('wakeLock' in navigator) || !navigator.wakeLock || typeof navigator.wakeLock.request !== 'function') {
+    toast('이 브라우저는 화면 유지를 지원하지 않아요 — 기기 설정에서 화면 꺼짐 시간을 늘려 주세요');
+    return;
+  }
+  try {
+    kbWakeWanted = true;
+    kbWake = await navigator.wakeLock.request('screen');
+    kbWake.addEventListener('release', () => { kbWake = null; kbSyncWake(); });
+    kbSyncWake();
+    toast('화면을 계속 켜 둘게요 💡');
+  } catch (err) {
+    kbWakeWanted = false;
+    kbWake = null;
+    kbSyncWake();
+    toast('화면 유지를 켜지 못했어요 — 배터리·브라우저 설정을 확인해 주세요');
+  }
+}
+function kbWakeReacquire() {
+  if (!kbWakeWanted || kbWake || document.visibilityState !== 'visible') return;
+  if (!navigator.wakeLock || typeof navigator.wakeLock.request !== 'function') return;
+  navigator.wakeLock.request('screen').then(lock => {
+    kbWake = lock;
+    lock.addEventListener('release', () => { kbWake = null; kbSyncWake(); });
+    kbSyncWake();
+  }).catch(() => { kbWakeWanted = false; kbSyncWake(); });
+}
+
+/* ---------------- 모달: 부모 설정 ---------------- */
+function kbOpenSettings(kid, focusKind) {
+  if (kid && KB_KID_MAP[kid]) kbUI.settingsKid = kid;
+  kbRenderSettings();
+  openModal('modalKidsSettings');
+  if (focusKind) {
+    setTimeout(() => {
+      const input = document.querySelector(`#kbSetBody [data-kb-addinput="${focusKind}"]`);
+      if (input) {
+        input.scrollIntoView({ block: 'center' });
+        input.focus({ preventScroll: true });
+      }
+    }, 240);
+  }
+}
+
+function kbSettingsList(kid, kind, title) {
+  const items = kbListOf(kid, kind);
+  const max = kind === 'homework' ? 24 : 20;
+  const rows = items.length
+    ? items.map(it => `
+      <div class="kb-set-row" data-kb-item="${it.id}">
+        ${kind === 'homework'
+          ? '<span class="kb-set-icon flat" aria-hidden="true">★</span>'
+          : `<button class="kb-set-icon" type="button" data-kb-cycle="${it.id}" data-kb-kind="${kind}" aria-label="아이콘 바꾸기">${esc(it.icon)}</button>`}
+        <input class="kb-set-text" type="text" maxlength="${max}" value="${esc(it.text)}"
+          data-kb-text="${it.id}" data-kb-kind="${kind}" aria-label="${esc(it.text)} 내용 고치기">
+        <button class="kb-set-del" type="button" data-kb-del="${it.id}" data-kb-kind="${kind}" aria-label="${esc(it.text)} 지우기">✕</button>
+      </div>`).join('')
+    : '<p class="kb-empty">아직 없어요 — 아래에서 추가해요</p>';
+  return `
+    <section class="kb-set-sec" data-kb-setsec="${kind}">
+      <div class="kb-sec-head"><h3 class="modal-sub">${title}</h3><span class="kb-sec-note">${items.length}개</span></div>
+      ${rows}
+      <div class="kb-set-add">
+        <input class="text-input" type="text" maxlength="${max}" data-kb-addinput="${kind}"
+          placeholder="${kind === 'homework' ? '예) 수학 10~12쪽' : '예) 물 마시기'}" aria-label="${title} 추가할 내용">
+        <button class="btn btn-ghost btn-small" type="button" data-kb-add="${kind}">＋ 추가</button>
+      </div>
+    </section>`;
+}
+
+function kbRenderSettings() {
+  const body = $('#kbSetBody');
+  if (!body) return;
+  const kid = kbUI.settingsKid;
+  const data = kb.kids[kid];
+  body.innerHTML = `
+    <div class="kb-set-kids" role="group" aria-label="아이 고르기">
+      ${KB_KIDS.map(k => `
+        <button class="kb-pick ${k.id === kid ? 'is-on' : ''}" type="button" data-kb-setkid="${k.id}" aria-pressed="${k.id === kid}">
+          <span aria-hidden="true">${k.icon}</span> ${esc(k.name)}
+        </button>`).join('')}
+    </div>
+    <h3 class="modal-sub">프로필</h3>
+    <label class="field-label" for="kbSetNick">별명</label>
+    <input class="text-input" id="kbSetNick" type="text" maxlength="12" data-kb-field="nick" value="${esc(data.nick)}">
+    <label class="field-label" for="kbSetGoal">이번 주 목표</label>
+    <input class="text-input" id="kbSetGoal" type="text" maxlength="40" data-kb-field="goal" value="${esc(data.goal)}">
+    <p class="modal-help">여기서 바꾸면 바로 저장돼요.</p>
+    ${kbSettingsList(kid, 'morning', '🌞 아침 루틴')}
+    ${kbSettingsList(kid, 'evening', '🌙 저녁 루틴')}
+    ${kbSettingsList(kid, 'homework', '📚 홈스쿨 숙제')}
+    <p class="modal-help">아이콘을 누르면 그림이 바뀌어요. 지운 루틴은 오늘 완료 표시에서도 빠져요.</p>
+  `;
+}
+
+function kbAddItem(kid, kind, text) {
+  const list = kbListOf(kid, kind);
+  list.push(kind === 'homework'
+    ? { id: uid(), text }
+    : { id: uid(), icon: KB_ICONS[0], text });
+  kbSave();
+  kbRenderSettings();
+  renderKidsColumn(kid);
+  kbPlay('star');
+  toast(`‘${text}’ 넣었어요`);
+}
+
+function kbDeleteItem(kid, kind, id) {
+  const list = kbListOf(kid, kind);
+  const idx = list.findIndex(it => it.id === id);
+  if (idx < 0) return;
+  const [removed] = list.splice(idx, 1);
+  // 오늘 완료 표시도 함께 정리
+  const d = kbDoneMap(dateKey(), kid);
+  if (d[id]) { delete d[id]; kb.stars[kid] = Math.max(0, (kb.stars[kid] || 0) - 1); }
+  kbSave();
+  kbRenderSettings();
+  renderKidsColumn(kid);
+  toast(`‘${removed.text}’ 지웠어요`);
+}
+
+function kbSetClick(e) {
+  const t = e.target;
+  const kidBtn = t.closest('[data-kb-setkid]');
+  if (kidBtn) { kbUI.settingsKid = kidBtn.dataset.kbSetkid; kbRenderSettings(); return; }
+
+  const cyc = t.closest('[data-kb-cycle]');
+  if (cyc) {
+    const kid = kbUI.settingsKid;
+    const item = kbFindItem(kid, cyc.dataset.kbKind, cyc.dataset.kbCycle);
+    if (!item) return;
+    const at = KB_ICONS.indexOf(item.icon);
+    item.icon = KB_ICONS[(at + 1) % KB_ICONS.length];
+    cyc.textContent = item.icon;
+    kbSave();
+    renderKidsColumn(kid);
+    kbPlay('tick');
+    return;
+  }
+
+  const del = t.closest('[data-kb-del]');
+  if (del) { kbDeleteItem(kbUI.settingsKid, del.dataset.kbKind, del.dataset.kbDel); return; }
+
+  const add = t.closest('[data-kb-add]');
+  if (add) {
+    const kind = add.dataset.kbAdd;
+    const input = document.querySelector(`#kbSetBody [data-kb-addinput="${kind}"]`);
+    const text = ((input && input.value) || '').trim();
+    if (!text) { toast('내용을 적어 주세요'); if (input) input.focus(); return; }
+    kbAddItem(kbUI.settingsKid, kind, text);
+  }
+}
+
+function kbSetInput(e) {
+  const el = e.target;
+  const kid = kbUI.settingsKid;
+  if (el.dataset.kbField === 'nick') {
+    kb.kids[kid].nick = el.value.slice(0, 12);
+    kbSave();
+    renderKidsColumn(kid);
+    return;
+  }
+  if (el.dataset.kbField === 'goal') {
+    kb.kids[kid].goal = el.value.slice(0, 40);
+    kbSave();
+    renderKidsColumn(kid);
+    return;
+  }
+  const id = el.dataset.kbText;
+  if (!id) return;
+  const item = kbFindItem(kid, el.dataset.kbKind, id);
+  if (!item) return;
+  const text = el.value.trim();
+  if (!text) { el.value = item.text; return; }
+  item.text = text;
+  kbSave();
+  renderKidsColumn(kid);
+}
+
+/* ---------------- 모달: 용돈 기입장 ---------------- */
+function kbOpenMoney(kid) {
+  if (!KB_KID_MAP[kid]) return;
+  kbUI.moneyKid = kid;
+  kbRenderMoney();
+  openModal('modalKidsMoney');
+}
+
+function kbRenderMoney() {
+  const kid = kbUI.moneyKid;
+  const k = KB_KID_MAP[kid];
+  const body = $('#kbMoneyBody');
+  if (!body || !k) return;
+  const title = $('#kbMoneyTitle');
+  if (title) title.textContent = `🐷 ${k.name} 용돈 기입장`;
+  const list = (kb.money[kid] || []).slice().reverse();
+  body.innerHTML = `
+    <div class="kb-money-bal">
+      <span>지금 잔액</span>
+      <strong id="kbMoneyBal">${money(kbBalance(kid))}원</strong>
+    </div>
+    <div class="kb-money-form">
+      <div class="kb-money-row">
+        <input class="text-input" id="kbMoneyAmount" type="number" min="1" step="100" inputmode="numeric" placeholder="금액">
+        <input class="text-input" id="kbMoneyMemo" type="text" maxlength="20" placeholder="예) 문구점 색연필">
+      </div>
+      <div class="kb-money-chips">
+        ${[500, 1000, 5000].map(v => `<button class="chip" type="button" data-kb-amt="${v}">${money(v)}원</button>`).join('')}
+        <button class="chip" type="button" data-kb-amt="">지우기</button>
+      </div>
+      <div class="kb-money-actions">
+        <button class="btn btn-mint" id="kbMoneyIn" type="button">＋ 입금 (용돈·칭찬)</button>
+        <button class="btn btn-ghost" id="kbMoneyOut" type="button">－ 출금 (지출)</button>
+      </div>
+    </div>
+    <h3 class="modal-sub">최근 기록</h3>
+    <div class="kb-money-list">
+      ${list.length ? list.map(m => `
+        <div class="kb-money-item ${m.kind === 'out' ? 'out' : 'in'}">
+          <span class="kb-money-when">${esc(kbShortDate(m.at))}</span>
+          <span class="kb-money-memo">${esc(m.memo || (m.kind === 'out' ? '지출' : '용돈'))}</span>
+          <span class="kb-money-amt">${m.kind === 'out' ? '−' : '+'}${money(m.amount)}원</span>
+          <button class="mini-btn danger" type="button" data-kb-money-del="${m.id}" aria-label="이 기록 지우기">✕</button>
+        </div>`).join('') : '<p class="kb-empty">아직 기록이 없어요</p>'}
+    </div>
+    <p class="modal-help">용돈 기록은 이 기기에만 저장되고, ⚙️ 설정의 JSON 백업에도 함께 담겨요.</p>
+  `;
+}
+
+function kbMoneyAdd(kind) {
+  const kid = kbUI.moneyKid;
+  const amount = Math.round(Number($('#kbMoneyAmount').value) || 0);
+  const memoEl = $('#kbMoneyMemo');
+  const memo = memoEl ? memoEl.value.trim() : '';
+  if (amount <= 0) { toast('금액을 적어 주세요'); $('#kbMoneyAmount').focus(); return; }
+  if (kind === 'out' && amount > kbBalance(kid)) { toast('잔액보다 많아요 — 금액을 줄여 주세요'); return; }
+  kb.money[kid] = kb.money[kid] || [];
+  kb.money[kid].push({
+    id: uid(),
+    kind: kind === 'out' ? 'out' : 'in',
+    amount,
+    memo,
+    at: Date.now(),
+  });
+  kbSave();
+  kbRenderMoney();
+  renderKidsColumn(kid);
+  kbPlay(kind === 'out' ? 'undo' : 'star');
+  toast(`${KB_KID_MAP[kid].name} ${kind === 'out' ? '출금' : '입금'} ${money(amount)}원 · 잔액 ${money(kbBalance(kid))}원`);
+}
+
+function kbMoneyClick(e) {
+  const t = e.target;
+  const amt = t.closest('[data-kb-amt]');
+  if (amt) {
+    $('#kbMoneyAmount').value = amt.dataset.kbAmt || '';
+    $('#kbMoneyMemo').focus({ preventScroll: true });
+    return;
+  }
+  const del = t.closest('[data-kb-money-del]');
+  if (del) {
+    const kid = kbUI.moneyKid;
+    kb.money[kid] = (kb.money[kid] || []).filter(m => m.id !== del.dataset.kbMoneyDel);
+    kbSave();
+    kbRenderMoney();
+    renderKidsColumn(kid);
+    toast('기록을 지웠어요');
+    return;
+  }
+  if (t.closest('#kbMoneyIn')) kbMoneyAdd('in');
+  else if (t.closest('#kbMoneyOut')) kbMoneyAdd('out');
+}
+
+/* ---------------- 모달: 누가 먼저? ---------------- */
+function kbOpenWho() {
+  kbRenderWho();
+  openModal('modalKidsWho');
+}
+
+function kbRenderWho() {
+  const picks = $('#kbWhoPicks');
+  if (picks) {
+    picks.innerHTML = KB_WHO.map(w => `
+      <button class="kb-pick ${kb.roulette.includes(w.id) ? 'is-on' : ''}" type="button"
+        data-kb-who="${w.id}" aria-pressed="${kb.roulette.includes(w.id)}">
+        <span aria-hidden="true">${w.emoji}</span> ${esc(w.name)}
+      </button>`).join('');
+  }
+  const wheel = $('#kbWheel');
+  if (wheel && !kbUI.spinning) {
+    wheel.classList.remove('is-winner');
+    wheel.textContent = kb.roulette.length >= 2 ? '준비!' : '두 명 이상 골라요';
+  }
+  const sub = $('#kbWhoSub');
+  if (sub) sub.textContent = kb.roulette.length ? `${kb.roulette.length}명 중에 골라요` : '돌려서 정해요';
+}
+
+function kbSpinWho() {
+  if (kbUI.spinning) return;
+  const picks = kb.roulette.filter(id => KB_WHO_MAP[id]);
+  if (picks.length < 2) { toast('순서를 정할 사람을 두 명 이상 골라 주세요'); return; }
+  const wheel = $('#kbWheel');
+  const result = $('#kbWhoResult');
+  if (!wheel) return;
+  kbUI.spinning = true;
+  wheel.classList.remove('is-winner');
+  wheel.classList.add('is-spinning');
+  if (result) result.textContent = '두구두구…';
+  let i = 0;
+  const total = 17;
+  const iv = setInterval(() => {
+    const w = KB_WHO_MAP[picks[i % picks.length]];
+    wheel.textContent = `${w.emoji} ${w.name}`;
+    kbPlay('tick');
+    i++;
+    if (i >= total) {
+      clearInterval(iv);
+      const win = KB_WHO_MAP[picks[Math.floor(Math.random() * picks.length)]];
+      kbUI.spinning = false;
+      wheel.classList.remove('is-spinning');
+      wheel.classList.add('is-winner');
+      wheel.textContent = `${win.emoji} ${win.name}`;
+      if (result) result.textContent = `🎉 ${win.name}${iGa(win.name)} 먼저!`;
+      kbPlay('win');
+      const r = wheel.getBoundingClientRect();
+      confetti(r.left + r.width / 2, r.top + 24, 34);
+      setTimeout(() => wheel.classList.remove('is-winner'), 1400);
+    }
+  }, 95);
+}
+
+function kbWhoClick(e) {
+  const btn = e.target.closest('[data-kb-who]');
+  if (!btn) return;
+  const id = btn.dataset.kbWho;
+  if (!KB_WHO_MAP[id]) return;
+  const at = kb.roulette.indexOf(id);
+  if (at >= 0) kb.roulette = kb.roulette.filter(x => x !== id);
+  else kb.roulette = kb.roulette.concat([id]);
+  kbSave();
+  kbRenderWho();
+  kbPlay('tick');
+}
+
+/* ---------------- 모달: 가족 우체통 ---------------- */
+function kbOpenMail() {
+  kbRenderMail();
+  openModal('modalKidsMail');
+}
+
+function kbRenderMail() {
+  const toEl = $('#kbMailTo');
+  if (toEl) {
+    toEl.innerHTML = KB_MAIL_TO.map(w => `
+      <button class="kb-pick ${kbUI.mailTo === w.id ? 'is-on' : ''}" type="button"
+        data-kb-mailto="${w.id}" aria-pressed="${kbUI.mailTo === w.id}">
+        <span aria-hidden="true">${w.emoji}</span> ${esc(w.name)}
+      </button>`).join('');
+  }
+  const fromEl = $('#kbMailFrom');
+  if (fromEl) {
+    fromEl.innerHTML = KB_WHO.map(w => `
+      <button class="kb-pick ${kbUI.mailFrom === w.id ? 'is-on' : ''}" type="button"
+        data-kb-mailfrom="${w.id}" aria-pressed="${kbUI.mailFrom === w.id}">
+        <span aria-hidden="true">${w.emoji}</span> ${esc(w.name)}
+      </button>`).join('');
+  }
+  const list = $('#kbMailList');
+  if (list) {
+    const notes = kb.mailbox.slice().reverse();
+    list.innerHTML = notes.length ? notes.map(n => {
+      const from = KB_WHO_MAP[n.from] || KB_WHO_MAP.dad;
+      const to = n.to === 'all' ? { name: '가족 모두', emoji: '🏡' } : (KB_WHO_MAP[n.to] || { name: '가족', emoji: '🏡' });
+      return `
+        <div class="kb-mail-item">
+          <span aria-hidden="true">${to.emoji}</span>
+          <div class="kb-mail-body">
+            <div class="kb-mail-head">${esc(from.name)} → ${esc(to.name)} · ${esc(kbShortDate(n.at))}</div>
+            <div class="kb-mail-text">${esc(n.text)}</div>
+          </div>
+          <button class="mini-btn danger" type="button" data-kb-mail-del="${n.id}" aria-label="쪽지 지우기">✕</button>
+        </div>`;
+    }).join('') : '<p class="kb-empty">아직 쪽지가 없어요 — 첫 쪽지를 남겨 보세요</p>';
+  }
+}
+
+function kbSendMail() {
+  const input = $('#kbMailText');
+  const text = (input && input.value || '').trim();
+  if (!text) { toast('쪽지 내용을 적어 주세요'); if (input) input.focus(); return; }
+  kb.mailbox.push({
+    id: uid(),
+    from: kbUI.mailFrom,
+    to: kbUI.mailTo,
+    text: text.slice(0, 80),
+    at: Date.now(),
+  });
+  kbSave();
+  if (input) input.value = '';
+  kbRenderMail();
+  renderKidsMailSub();
+  kbPlay('star');
+  const to = kbUI.mailTo === 'all' ? '가족 모두' : KB_WHO_MAP[kbUI.mailTo].name;
+  toast(`${to}에게 쪽지를 넣었어요 📮`);
+}
+
+function kbMailClick(e) {
+  const t = e.target;
+  const to = t.closest('[data-kb-mailto]');
+  if (to) { kbUI.mailTo = to.dataset.kbMailto; kbRenderMail(); return; }
+  const from = t.closest('[data-kb-mailfrom]');
+  if (from) { kbUI.mailFrom = from.dataset.kbMailfrom; kbRenderMail(); return; }
+  const del = t.closest('[data-kb-mail-del]');
+  if (del) {
+    kb.mailbox = kb.mailbox.filter(n => n.id !== del.dataset.kbMailDel);
+    kbSave();
+    kbRenderMail();
+    renderKidsMailSub();
+    toast('쪽지를 지웠어요');
+  }
+}
+
+/* ---------------- 아이들 보드 클릭 ---------------- */
+function kidsViewClick(e) {
+  const routine = e.target.closest('[data-kb-routine]');
+  if (routine) { kbToggleRoutine(routine); return; }
+  const hw = e.target.closest('[data-kb-hw]');
+  if (hw) { kbToggleHomework(hw); return; }
+  const pet = e.target.closest('[data-kb-pet]');
+  if (pet) { kbPetPlay(pet.dataset.kbPet, pet); return; }
+  const piggy = e.target.closest('[data-kb-money]');
+  if (piggy) { kbOpenMoney(piggy.dataset.kbMoney); return; }
+  const addhw = e.target.closest('[data-kb-addhw]');
+  if (addhw) { kbOpenSettings(addhw.dataset.kbAddhw, 'homework'); }
+}
+
+/* ---------------- 시작 ---------------- */
+function initKids() {
+  if (!$('#kidsView')) return;
+  kbUI.period = kbDefaultPeriod();
+
+  const on = (sel, fn) => { const el = $(sel); if (el) el.addEventListener('click', fn); };
+  on('#btnKidsToggle', () => setMode('kids'));
+  on('#btnBoardToKids', () => setMode('kids'));
+  on('#btnTravelToKids', () => setMode('kids'));
+  on('#kbToRecord', () => setMode('record'));
+  on('#kbToBoard', () => setMode('board'));
+  on('#kbToTravel', () => setMode('travel'));
+
+  on('#kbFull', kbToggleFullscreen);
+  on('#kbWake', kbToggleWake);
+  on('#kbSound', kbToggleSound);
+  on('#kbSettings', () => kbOpenSettings());
+
+  $$('#kidsView .kb-period').forEach(b => b.addEventListener('click', () => kbSetPeriod(b.dataset.kbPeriod)));
+
+  on('#kbCalPrev', () => {
+    kbUI.month = new Date(kbUI.month.getFullYear(), kbUI.month.getMonth() - 1, 1);
+    renderKidsCalendar();
+  });
+  on('#kbCalNext', () => {
+    kbUI.month = new Date(kbUI.month.getFullYear(), kbUI.month.getMonth() + 1, 1);
+    renderKidsCalendar();
+  });
+
+  on('#kbWhoOpen', kbOpenWho);
+  on('#kbWhoSpin', kbSpinWho);
+  on('#kbWhoPicks', kbWhoClick);
+  on('#kbDadCard', () => { renderKidsDad(); openModal('modalKidsDad'); });
+  on('#kbDadDanceBtn', kbDadDance);
+  on('#kbDanceBtn', kbDadDance);
+  on('#kbDadChips', e => {
+    const chip = e.target.closest('[data-kb-dad]');
+    if (chip) kbSetDadStatus(chip.dataset.kbDad);
+  });
+  on('#kbMailOpen', kbOpenMail);
+  on('#kbMailSend', kbSendMail);
+  on('#kbMailTo', kbMailClick);
+  on('#kbMailFrom', kbMailClick);
+  on('#kbMailList', kbMailClick);
+
+  on('#kidsView', kidsViewClick);
+  on('#kbSetBody', kbSetClick);
+  const setBody = $('#kbSetBody');
+  if (setBody) {
+    setBody.addEventListener('input', kbSetInput);
+    setBody.addEventListener('change', kbSetInput);
+  }
+  on('#kbMoneyBody', kbMoneyClick);
+  const mailInput = $('#kbMailText');
+  if (mailInput) mailInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); kbSendMail(); } });
+
+  document.addEventListener('fullscreenchange', kbSyncFullscreen);
+  document.addEventListener('webkitfullscreenchange', kbSyncFullscreen);
+  document.addEventListener('visibilitychange', kbWakeReacquire);
+
+  renderKidsAll();
+  setInterval(() => { if (kidsActive()) renderKidsClock(); }, 1000);
 }

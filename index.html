@@ -30,7 +30,8 @@
         <p class="app-sub">우리집의 포근한 하루</p>
       </div>
       <div class="header-actions">
-        <button class="btn btn-mint btn-board-open" id="btnBoardToggle" type="button">📅 캘린더 보드</button>
+        <button class="btn btn-mint btn-board-open" id="btnKidsToggle" type="button">🧒 아이들 보드</button>
+        <button class="btn btn-mint btn-board-open btn-board-open-sm" id="btnBoardToggle" type="button">📅 캘린더 보드</button>
         <button class="icon-btn" id="btnSettings" type="button" aria-label="설정 열기" title="설정">
           <span aria-hidden="true">⚙️</span>
         </button>
@@ -410,6 +411,7 @@
           <button class="bd-tab" type="button" data-btab="stamp">⭐ 스티커</button>
           <button class="bd-tab" type="button" data-btab="music">🎵 음악</button>
           <button class="bd-tab" type="button" data-btab="travel">✈️ 여행</button>
+          <button class="bd-tab-kids" type="button" id="btnBoardToKids">🧒 아이들 보드</button>
           <button class="bd-tab bd-tab-back" type="button" id="btnBoardBack">📱 가족 기록장</button>
         </nav>
       </div>
@@ -579,6 +581,7 @@
           <p>다녀온 곳엔 깃발, 가고 싶은 곳엔 별을 꽂아요</p>
         </div>
         <nav class="tv-nav" aria-label="화면 이동">
+          <button class="tv-nav-btn tv-nav-kids" id="btnTravelToKids" type="button">🧒 아이들 보드</button>
           <button class="tv-nav-btn" id="btnTravelToBoard" type="button">📅 캘린더 보드</button>
           <button class="tv-nav-btn tv-nav-back" id="btnTravelBack" type="button">📱 가족 기록장</button>
         </nav>
@@ -785,6 +788,196 @@
       <button class="btn btn-ghost btn-small" id="btnTvPhotoPrev" type="button">‹ 이전</button>
       <button class="btn btn-danger btn-small" id="btnTvPhotoDel" type="button">🗑 이 사진 지우기</button>
       <button class="btn btn-ghost btn-small" id="btnTvPhotoNext" type="button">다음 ›</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 🧒 아이들 보드 (아이들 전용 도트 월드) ============ -->
+<div class="kids" id="kidsView" hidden>
+  <div class="kb-inner">
+
+    <header class="kb-bar">
+      <div class="kb-brand">
+        <span class="kb-brand-emoji" aria-hidden="true">🧒</span>
+        <div class="kb-brand-text">
+          <h1 class="kb-brand-title">아이들 보드</h1>
+          <p class="kb-brand-sub">오늘도 스스로 척척!</p>
+        </div>
+      </div>
+
+      <div class="kb-clock">
+        <span class="kb-clock-chip">
+          <span class="kb-clock-ampm" id="kbAmpm">오전</span>
+          <span class="kb-clock-digits" id="kbDigits" role="img" aria-label="현재 시각"></span>
+        </span>
+        <span class="kb-date" id="kbDate">오늘</span>
+      </div>
+
+      <div class="kb-tools" role="group" aria-label="화면 도구">
+        <button class="kb-tool" id="kbFull" type="button" aria-pressed="false">⛶ 전체 화면</button>
+        <button class="kb-tool" id="kbWake" type="button" aria-pressed="false">💡 화면 유지</button>
+        <button class="kb-tool" id="kbSound" type="button" aria-pressed="true">🔊 소리 알림</button>
+        <button class="kb-tool kb-tool-ghost" id="kbSettings" type="button">⚙️ 부모 설정</button>
+      </div>
+
+      <div class="kb-periods" role="group" aria-label="시간대 보기">
+        <span class="kb-periods-label">시간대</span>
+        <button class="kb-period" data-kb-period="all" type="button" aria-pressed="false">전체</button>
+        <button class="kb-period" data-kb-period="morning" type="button" aria-pressed="false">🌞 아침</button>
+        <button class="kb-period" data-kb-period="evening" type="button" aria-pressed="false">🌙 저녁</button>
+      </div>
+
+      <nav class="kb-nav" aria-label="화면 이동">
+        <button class="kb-nav-btn" id="kbToRecord" type="button">📱 가족 기록장</button>
+        <button class="kb-nav-btn" id="kbToBoard" type="button">📅 캘린더 보드</button>
+        <button class="kb-nav-btn" id="kbToTravel" type="button">✈️ 여행 보드</button>
+      </nav>
+    </header>
+
+    <main class="kb-main">
+      <div class="kb-kidcol" data-kb-kid="yuns" id="kbCol-yuns"></div>
+      <div class="kb-kidcol" data-kb-kid="noeul" id="kbCol-noeul"></div>
+
+      <div class="kb-bottom">
+        <section class="kb-panel kb-cal-panel" aria-labelledby="kbCalTitle">
+          <div class="kb-panel-head">
+            <h2 id="kbCalTitle">📅 우리집 달력</h2>
+            <div class="kb-cal-nav">
+              <button class="kb-mini-btn" id="kbCalPrev" type="button" aria-label="이전 달">‹</button>
+              <strong id="kbCalMonth">11월</strong>
+              <button class="kb-mini-btn" id="kbCalNext" type="button" aria-label="다음 달">›</button>
+            </div>
+          </div>
+          <div class="kb-week" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+          <div class="kb-cal-grid" id="kbCalGrid"></div>
+          <div class="kb-cal-lists">
+            <div class="kb-cal-col">
+              <h3 class="kb-sub-title">🎈 다가오는 일정</h3>
+              <div class="kb-up-list" id="kbUpList"></div>
+            </div>
+            <div class="kb-cal-col">
+              <h3 class="kb-sub-title">🐰🐣 오늘 아이들 일정</h3>
+              <div class="kb-today-kids" id="kbTodayKids"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="kb-panel kb-dad-panel" aria-labelledby="kbDadTitle">
+          <div class="kb-panel-head">
+            <h2 id="kbDadTitle">오늘 아빠는?</h2>
+            <span class="kb-panel-note">함께 놀아요</span>
+          </div>
+          <div class="kb-play">
+            <button class="kb-play-card kb-play-who" id="kbWhoOpen" type="button">
+              <span class="kb-play-emoji" aria-hidden="true">🎯</span>
+              <strong class="kb-play-title">누가 먼저?</strong>
+              <span class="kb-play-sub" id="kbWhoSub">돌려서 정해요</span>
+            </button>
+            <button class="kb-play-card kb-play-dad" id="kbDadCard" type="button">
+              <span class="kb-dad-sprite" id="kbDadSprite" aria-hidden="true"></span>
+              <strong class="kb-play-title"><span id="kbDadEmoji" aria-hidden="true">💼</span> <span id="kbDadLabel">일하는 중</span></strong>
+              <span class="kb-play-sub">아빠 상태 · 눌러 보기</span>
+            </button>
+            <button class="kb-play-card kb-play-mail" id="kbMailOpen" type="button">
+              <span class="kb-play-emoji" aria-hidden="true">📮</span>
+              <strong class="kb-play-title">가족 우체통</strong>
+              <span class="kb-play-sub" id="kbMailSub">쪽지 0장</span>
+            </button>
+          </div>
+          <button class="kb-dance-btn" id="kbDanceBtn" type="button">🕺 아빠 댄스 시작!</button>
+          <div class="kb-mail-peek" id="kbMailPeek"></div>
+          <p class="kb-dad-note" id="kbDadNote">아빠를 누르면 상태를 바꿔요 🕺</p>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ============ 모달: 아이들 보드 부모 설정 ============ -->
+<div class="modal" id="modalKidsSettings" role="dialog" aria-modal="true" aria-labelledby="kbSetTitle" hidden>
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h2 id="kbSetTitle">⚙️ 아이들 보드 설정</h2>
+      <button class="icon-btn small" data-close type="button" aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-body" id="kbSetBody"></div>
+    <div class="modal-foot">
+      <button class="btn btn-mint full" data-close type="button">다 했어요</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 모달: 용돈 기입장 ============ -->
+<div class="modal" id="modalKidsMoney" role="dialog" aria-modal="true" aria-labelledby="kbMoneyTitle" hidden>
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h2 id="kbMoneyTitle">🐷 용돈 기입장</h2>
+      <button class="icon-btn small" data-close type="button" aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-body" id="kbMoneyBody"></div>
+    <div class="modal-foot">
+      <button class="btn btn-mint full" data-close type="button">다 했어요</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 모달: 누가 먼저? ============ -->
+<div class="modal" id="modalKidsWho" role="dialog" aria-modal="true" aria-labelledby="kbWhoTitle" hidden>
+  <div class="modal-panel modal-small">
+    <div class="modal-head">
+      <h2 id="kbWhoTitle">🎯 누가 먼저?</h2>
+      <button class="icon-btn small" data-close type="button" aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-help">순서를 정할 사람을 골라요 (두 명 이상)</p>
+      <div class="kb-pick-row" id="kbWhoPicks" role="group" aria-label="참여자 고르기"></div>
+      <div class="kb-wheel" id="kbWheel">준비!</div>
+      <button class="btn btn-mint full" id="kbWhoSpin" type="button">🎲 돌리기</button>
+      <p class="kb-wheel-result" id="kbWhoResult"></p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost full" data-close type="button">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 모달: 가족 우체통 ============ -->
+<div class="modal" id="modalKidsMail" role="dialog" aria-modal="true" aria-labelledby="kbMailTitle" hidden>
+  <div class="modal-panel">
+    <div class="modal-head">
+      <h2 id="kbMailTitle">📮 가족 우체통</h2>
+      <button class="icon-btn small" data-close type="button" aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label">받는 사람</label>
+      <div class="kb-pick-row" id="kbMailTo" role="group" aria-label="받는 사람"></div>
+      <label class="field-label">보내는 사람</label>
+      <div class="kb-pick-row" id="kbMailFrom" role="group" aria-label="보내는 사람"></div>
+      <input class="text-input" id="kbMailText" type="text" maxlength="60" placeholder="예) 오늘도 최고! 사랑해 💛">
+      <button class="btn btn-mint full" id="kbMailSend" type="button">✉️ 쪽지 넣기</button>
+      <h3 class="modal-sub">받은 쪽지</h3>
+      <div class="kb-mail-list" id="kbMailList"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost full" data-close type="button">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 모달: 오늘 아빠는? ============ -->
+<div class="modal" id="modalKidsDad" role="dialog" aria-modal="true" aria-labelledby="kbDadModalTitle" hidden>
+  <div class="modal-panel modal-small">
+    <div class="modal-head">
+      <h2 id="kbDadModalTitle">🕺 오늘 아빠는?</h2>
+      <button class="icon-btn small" data-close type="button" aria-label="닫기">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-help">아빠 지금 상태를 골라요. 고르면 같이 춤춰요!</p>
+      <div class="kb-dad-chips" id="kbDadChips" role="group" aria-label="아빠 상태"></div>
+      <button class="btn btn-mint full" id="kbDadDanceBtn" type="button">🕺 아빠 댄스 시작</button>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost full" data-close type="button">닫기</button>
     </div>
   </div>
 </div>
