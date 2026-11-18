@@ -1716,3 +1716,10 @@ body.is-kids .bg-blobs{background:#F3FBEF}
   .kb-cal-lists{grid-template-columns:1fr}
   .kb-today-row{flex-direction:row;gap:7px}
 }
+
+/* 아이들 보드 — 직접 그린 SVG 아이콘 */
+.kb-ico{width:46px;height:46px;display:block}
+.kb-routine-icon{display:grid;place-items:center;width:100%}
+.kb-ico-sm{width:24px;height:24px;display:block;margin:0 auto}
+.kb-set-icon{padding:5px}
+.kb-hw-star .kb-ico-sm{width:15px;height:15px}

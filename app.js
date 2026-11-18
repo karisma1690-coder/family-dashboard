@@ -3758,7 +3758,69 @@ const KB_WHO = [
 const KB_WHO_MAP = Object.fromEntries(KB_WHO.map(w => [w.id, w]));
 const KB_MAIL_TO = [{ id: 'all', name: '가족 모두', emoji: '🏡' }].concat(KB_WHO);
 
-const KB_ICONS = ['🛏️', '🪥', '🍚', '🎒', '🚿', '🧸', '📚', '🧹', '🧦', '🥛', '🎨', '⭐', '🧼', '🚽', '👕', '🦷'];
+/* 루틴 아이콘 — 직접 그린 도트풍 SVG 일러스트 (이모지 없이 앱 안에서 그려요) */
+const KB_ICON_KEYS = ['bed', 'brush', 'rice', 'bag', 'shower', 'teddy', 'book', 'cup', 'shirt', 'star'];
+const KB_ICON_ART = {
+  bed: `
+    <path d="M7 34V22a4 4 0 0 1 4-4h26a4 4 0 0 1 4 4v12z" fill="#FFE3C8" stroke="#6B5A46" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M7 34h34" stroke="#6B5A46" stroke-width="2.4" stroke-linecap="round"/>
+    <rect x="10" y="23" width="12" height="7" rx="3" fill="#FFFFFF" stroke="#6B5A46" stroke-width="2.2"/>
+    <path d="M25 30h13" stroke="#E7A96B" stroke-width="3" stroke-linecap="round"/>
+    <path d="M7 34v4M41 34v4" stroke="#6B5A46" stroke-width="2.4" stroke-linecap="round"/>`,
+  brush: `
+    <g transform="rotate(18 24 24)">
+      <rect x="19" y="9" width="10" height="28" rx="5" fill="#FFB7CC" stroke="#6B5A46" stroke-width="2.4"/>
+      <rect x="19" y="9" width="10" height="9" rx="4" fill="#FFFFFF" stroke="#6B5A46" stroke-width="2.2"/>
+      <path d="M21 7v3M24 7v3M27 7v3" stroke="#6B5A46" stroke-width="2" stroke-linecap="round"/>
+      <path d="M24 22v10" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+    </g>`,
+  rice: `
+    <path d="M7 27h34a17 17 0 0 1-17 15 17 17 0 0 1-17-15z" fill="#EAF6FF" stroke="#6B5A46" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M11 27a13 13 0 0 1 26 0z" fill="#FFFFFF" stroke="#6B5A46" stroke-width="2.2"/>
+    <path d="M18 15c0-3 3-3 3-6M27 15c0-3 3-3 3-6" stroke="#BBD9EA" stroke-width="2.4" fill="none" stroke-linecap="round"/>`,
+  bag: `
+    <rect x="10" y="17" width="28" height="24" rx="8" fill="#FFC9A8" stroke="#6B5A46" stroke-width="2.4"/>
+    <path d="M18 17v-3a6 6 0 0 1 12 0v3" fill="none" stroke="#6B5A46" stroke-width="2.6" stroke-linecap="round"/>
+    <rect x="16" y="26" width="16" height="10" rx="3.5" fill="#FFF6EC" stroke="#6B5A46" stroke-width="2.2"/>
+    <path d="M24 27v9" stroke="#6B5A46" stroke-width="2" stroke-linecap="round"/>`,
+  shower: `
+    <path d="M11 21h20l-4.5 9h-11z" fill="#CFE7F7" stroke="#6B5A46" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M21 21v-8a5 5 0 0 1 5-5" fill="none" stroke="#6B5A46" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M15 34v3M21 36v3M27 34v3M18 41v2M24 41v2" stroke="#5FB3E0" stroke-width="2.8" stroke-linecap="round"/>`,
+  teddy: `
+    <circle cx="14" cy="15" r="5" fill="#FFD9A8" stroke="#6B5A46" stroke-width="2.2"/>
+    <circle cx="34" cy="15" r="5" fill="#FFD9A8" stroke="#6B5A46" stroke-width="2.2"/>
+    <circle cx="24" cy="27" r="13" fill="#FFD9A8" stroke="#6B5A46" stroke-width="2.4"/>
+    <ellipse cx="24" cy="31" rx="6" ry="4.5" fill="#FFF3E0" stroke="#6B5A46" stroke-width="2"/>
+    <circle cx="19" cy="24" r="1.8" fill="#6B5A46"/>
+    <circle cx="29" cy="24" r="1.8" fill="#6B5A46"/>`,
+  book: `
+    <path d="M8 13h11a6 6 0 0 1 5 3v20a6 6 0 0 0-5-3H8z" fill="#EAF6FF" stroke="#6B5A46" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M40 13H29a6 6 0 0 0-5 3v20a6 6 0 0 1 5-3h11z" fill="#F8FCFF" stroke="#6B5A46" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M13 20h6M13 26h6M29 20h6M29 26h6" stroke="#BBD9EA" stroke-width="2" stroke-linecap="round"/>`,
+  cup: `
+    <path d="M14 16h18l-2 20a4 4 0 0 1-4 3.4h-6A4 4 0 0 1 16 36z" fill="#E6F4FF" stroke="#6B5A46" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M16 25h15" stroke="#7FC7E8" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M32 20h4a3 3 0 0 1 0 7h-3" fill="none" stroke="#6B5A46" stroke-width="2.2" stroke-linecap="round"/>`,
+  shirt: `
+    <path d="M18 11 9 16l3.5 8 4.5-2v14h14V22l4.5 2L39 16l-9-5-3 3h-6z" fill="#FFE1EC" stroke="#6B5A46" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M24 15v21" stroke="#F3B9CC" stroke-width="2" stroke-linecap="round"/>`,
+  star: `
+    <path d="M24 9l4.6 9.6 10.4 1.5-7.5 7.4 1.8 10.4L24 33.8l-9.3 5.1 1.8-10.4L9 21.1l10.4-1.5z" fill="#FFE9A8" stroke="#6B5A46" stroke-width="2.4" stroke-linejoin="round"/>`,
+};
+const KB_EMOJI_TO_KEY = {
+  '🛏️': 'bed', '🛏': 'bed', '🪥': 'brush', '🍚': 'rice', '🎒': 'bag', '🚿': 'shower',
+  '🧸': 'teddy', '📚': 'book', '🥛': 'cup', '👕': 'shirt', '⭐': 'star', '🌟': 'star',
+};
+const KB_ICONS = KB_ICON_KEYS;
+function kbIconKey(v) {
+  const raw = String(v == null ? '' : v);
+  if (KB_ICON_ART[raw]) return raw;
+  return KB_EMOJI_TO_KEY[raw] || 'star';
+}
+function kbIconSVG(key, cls = 'kb-ico') {
+  return `<svg class="${cls}" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${KB_ICON_ART[kbIconKey(key)] || KB_ICON_ART.star}</svg>`;
+}
 
 const KB_DEFAULT_ROUTINES = {
   morning: [
@@ -3895,7 +3957,7 @@ function kbNormalize(raw) {
       const src = rk.routines && Array.isArray(rk.routines[p]) ? rk.routines[p] : base.kids[k.id].routines[p];
       routines[p] = src.filter(it => it && it.text).slice(0, 12).map(it => ({
         id: it.id || uid(),
-        icon: String(it.icon || '⭐').slice(0, 4),
+        icon: kbIconKey(it.icon),
         text: String(it.text).slice(0, 20),
       }));
     });
@@ -4141,7 +4203,7 @@ function kbRoutineSection(kid, period, title, done) {
         <button class="kb-routine ${done[it.id] ? 'is-done' : ''}" type="button"
           data-kb-routine="${it.id}" data-kb-kid="${kid}" data-kb-period="${period}"
           aria-pressed="${!!done[it.id]}" aria-label="${esc(it.text)} ${done[it.id] ? '완료됨 — 누르면 취소' : '완료하기'}">
-          <span class="kb-routine-icon" aria-hidden="true">${esc(it.icon)}</span>
+          <span class="kb-routine-icon" aria-hidden="true">${kbIconSVG(it.icon)}</span>
           <span class="kb-routine-text">${esc(it.text)}</span>
           <span class="kb-stamp" aria-hidden="true">완료</span>
         </button>`).join('')
@@ -4554,7 +4616,7 @@ function kbSettingsList(kid, kind, title) {
       <div class="kb-set-row" data-kb-item="${it.id}">
         ${kind === 'homework'
           ? '<span class="kb-set-icon flat" aria-hidden="true">★</span>'
-          : `<button class="kb-set-icon" type="button" data-kb-cycle="${it.id}" data-kb-kind="${kind}" aria-label="아이콘 바꾸기">${esc(it.icon)}</button>`}
+          : `<button class="kb-set-icon" type="button" data-kb-cycle="${it.id}" data-kb-kind="${kind}" aria-label="아이콘 바꾸기">${kbIconSVG(it.icon, 'kb-ico-sm')}</button>`}
         <input class="kb-set-text" type="text" maxlength="${max}" value="${esc(it.text)}"
           data-kb-text="${it.id}" data-kb-kind="${kind}" aria-label="${esc(it.text)} 내용 고치기">
         <button class="kb-set-del" type="button" data-kb-del="${it.id}" data-kb-kind="${kind}" aria-label="${esc(it.text)} 지우기">✕</button>
@@ -4633,9 +4695,9 @@ function kbSetClick(e) {
     const kid = kbUI.settingsKid;
     const item = kbFindItem(kid, cyc.dataset.kbKind, cyc.dataset.kbCycle);
     if (!item) return;
-    const at = KB_ICONS.indexOf(item.icon);
+    const at = KB_ICONS.indexOf(kbIconKey(item.icon));
     item.icon = KB_ICONS[(at + 1) % KB_ICONS.length];
-    cyc.textContent = item.icon;
+    cyc.innerHTML = kbIconSVG(item.icon, 'kb-ico-sm');
     kbSave();
     renderKidsColumn(kid);
     kbPlay('tick');
